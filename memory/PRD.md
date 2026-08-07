@@ -26,9 +26,14 @@ Build an interactive job/internship tracker with an analytics dashboard as the l
 - Analytics endpoint computing KPIs, monthly volume, status donut, annualized compensation from real data.
 - Dashboard landing page (KPI cards, area/donut/bar charts, recent applications) matching design.
 - Applications page: cards, search, status filter chips, add/edit dialog, delete confirm.
-- Company logos via DuckDuckGo icon service (`icons.duckduckgo.com/ip3/{domain}.ico`) with colored-initials fallback.
+- Company logos via DuckDuckGo icon service with colored-initials fallback.
 - Seeded 10 sample applications for demo user.
-- Verified: 13/13 backend tests, 100% frontend flows.
+
+## Implemented — Feature Round 2 (2026-06-07)
+- **Kanban Board** (`/board`): drag-and-drop cards across 5 status columns; status persists via PUT. (17/17 backend, verified DnD persistence)
+- **CSV Import/Export**: export all applications to CSV; bulk import via `POST /api/applications/bulk` with client-side row validation + "imported/skipped" summary toast.
+- **Themed dark date picker**: react-day-picker Popover+Calendar replaces native date inputs for day applied, expected start date, and follow-up reminder.
+- **Follow-up deadline reminders**: `follow_up_date` field; dashboard "Follow-ups due" section + overdue/soon badges on Applications cards and Board cards.
 
 ## Backlog / Remaining
 - **P1**: Custom themed date picker (replace native date input); always-visible edit/delete on touch devices.

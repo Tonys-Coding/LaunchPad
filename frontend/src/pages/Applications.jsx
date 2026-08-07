@@ -101,13 +101,14 @@ export default function Applications() {
       const header = rows[0].map((h) => h.trim());
       const idx = (name) => header.indexOf(name);
       const items = [];
+      let skipped = 0;
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
         const get = (name) => { const i = idx(name); return i >= 0 ? (row[i] ?? "").trim() : ""; };
         const company = get("company_name");
         const title = get("job_title");
         const applied = get("day_applied");
-        if (!company || !title || !applied) continue;
+        if (!company || !title || !applied) { skipped++; continue; }
         const payRaw = get("pay_amount");
         items.push({
           company_name: company,
@@ -126,7 +127,7 @@ export default function Applications() {
       }
       if (items.length === 0) { toast.error("No valid rows found (need company, job title, day applied)"); return; }
       const { data } = await api.post("/applications/bulk", items);
-      toast.success(`Imported ${data.created} applications`);
+      toast.success(`Imported ${data.created} applications${skipped ? ` · ${skipped} skipped` : ""}`);
       await load();
     } catch {
       toast.error("Failed to import CSV");
