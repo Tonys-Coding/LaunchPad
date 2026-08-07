@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #051424;
+    color: #d4e4fa;
+}
+
+* {
+    border-color: #273647;
+}
+
+::selection {
+    background: #b4c5ff;
+    color: #002a78;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #010f1f; }
+::-webkit-scrollbar-thumb { background: #273647; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #434655; }
+
+.font-heading { font-family: 'Hanken Grotesk', sans-serif; }
+
+@layer base {
+    [data-debug-wrapper="true"] { display: contents !important; }
+}
