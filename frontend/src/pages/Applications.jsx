@@ -33,9 +33,14 @@ export default function Applications() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await api.get("/applications");
-    setApps(data);
-    setLoading(false);
+    try {
+      const { data } = await api.get("/applications");
+      setApps(data);
+    } catch {
+      toast.error("Failed to load applications");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
