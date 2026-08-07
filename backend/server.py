@@ -123,6 +123,7 @@ class ApplicationInput(BaseModel):
     pay_amount: Optional[float] = None
     pay_period: Optional[str] = None  # hourly | monthly | yearly
     confidence_level: Optional[str] = None  # Low | Medium | High
+    follow_up_date: Optional[str] = None
     status: str = "Applied"
 
 
@@ -216,6 +217,20 @@ async def create_application(input: ApplicationInput, user: dict = Depends(get_c
     doc["updated_at"] = now_utc().isoformat()
     await db.applications.insert_one(dict(doc))
     return await _app_to_public(dict(doc))
+
+
+@api_router.post("/applications/bulk")
+async def bulk_create_applications(items: List[ApplicationInput], user: dict = Depends(get_current_user)):
+    created = 0
+    for item in items:
+        doc = item.model_dump()
+        doc["app_id"] = f"app_{uuid.uuid4().hex[:12]}"
+        doc["user_id"] = user["user_id"]
+        doc["created_at"] = now_utc().isoformat()
+        doc["updated_at"] = now_utc().isoformat()
+        await db.applications.insert_one(dict(doc))
+        created += 1
+    return {"created": created}
 
 
 @api_router.get("/applications")
@@ -367,12 +382,16 @@ async def seed():
             tbd = status in ("Applied", "Screening", "Rejected")
             if not tbd:
                 start = (now_utc() + timedelta(days=90)).date().isoformat()
+            follow = None
+            if status in ("Applied", "Screening", "Interviewing"):
+                follow = (now_utc() - timedelta(days=days_ago) + timedelta(days=14)).date().isoformat()
             await db.applications.insert_one({
                 "app_id": f"app_{uuid.uuid4().hex[:12]}", "user_id": uid,
                 "company_name": name, "company_domain": domain, "job_title": title,
                 "day_applied": applied, "expected_start_date": start, "start_date_tbd": tbd,
                 "description": f"{title} position at {name}.", "pay_amount": amount,
-                "pay_period": period, "confidence_level": conf, "status": status,
+                "pay_period": period, "confidence_level": conf, "follow_up_date": follow,
+                "status": status,
                 "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat(),
             })
 

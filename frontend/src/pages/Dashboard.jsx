@@ -3,10 +3,11 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, BarChart, Bar,
 } from "recharts";
-import { Briefcase, MessagesSquare, Star, PieChart as PieIcon, TrendingUp, ArrowUpRight } from "lucide-react";
+import { Briefcase, MessagesSquare, Star, PieChart as PieIcon, TrendingUp, ArrowUpRight, Clock, AlertTriangle, BellRing } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { ApplicationForm } from "@/components/ApplicationForm";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { followUpState } from "@/lib/constants";
 import api from "@/lib/api";
 
 const STATUS_COLORS = {
@@ -34,11 +35,13 @@ function ChartTooltip({ active, payload, label, formatter }) {
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [allApps, setAllApps] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [a, apps] = await Promise.all([api.get("/analytics"), api.get("/applications")]);
     setData(a.data);
+    setAllApps(apps.data);
     setRecent(apps.data.slice(0, 5));
   }, []);
 
@@ -51,6 +54,11 @@ export default function Dashboard() {
 
   const kpis = data?.kpis || { total: 0, interviews: 0, offers: 0, success_rate: 0 };
   const totalStatus = (data?.status_distribution || []).reduce((s, x) => s + x.count, 0);
+
+  const dueFollowUps = allApps
+    .map((a) => ({ app: a, fu: followUpState(a) }))
+    .filter((x) => x.fu && (x.fu.level === "overdue" || x.fu.level === "soon"))
+    .sort((a, b) => (a.fu.level === "overdue" ? -a.fu.days : a.fu.days) - (b.fu.level === "overdue" ? -b.fu.days : b.fu.days));
 
   const cards = [
     { label: "Total Applications", value: kpis.total, icon: Briefcase, tint: "bg-orange/20 text-orange", note: `${kpis.responded ?? 0} responded` },
@@ -81,6 +89,36 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Follow-ups due */}
+      {dueFollowUps.length > 0 && (
+        <div className="mb-6 bg-surface-low border border-orange/30 rounded-xl p-5" data-testid="followups-due">
+          <div className="flex items-center gap-2 mb-4">
+            <BellRing size={18} className="text-orange" />
+            <h3 className="font-heading text-lg font-semibold">Follow-ups due</h3>
+            <span className="text-xs text-background bg-orange rounded-full px-2 py-0.5 font-semibold">{dueFollowUps.length}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {dueFollowUps.map(({ app, fu }) => {
+              const overdue = fu.level === "overdue";
+              const c = overdue ? "#ffb4ab" : "#ffb596";
+              return (
+                <div key={app.app_id} data-testid={`followup-due-${app.app_id}`} className="flex items-center gap-3 p-3 rounded-lg bg-surface-mid">
+                  <CompanyLogo name={app.company_name} domain={app.company_domain} size={36} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{app.job_title}</p>
+                    <p className="text-xs text-on-surface-variant truncate">{app.company_name} · {app.status}</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-semibold whitespace-nowrap" style={{ color: c }}>
+                    {overdue ? <AlertTriangle size={13} /> : <Clock size={13} />}
+                    {overdue ? `${fu.days}d overdue` : fu.days === 0 ? "Today" : `In ${fu.days}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

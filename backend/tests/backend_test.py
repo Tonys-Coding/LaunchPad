@@ -142,6 +142,52 @@ class TestApplications:
         assert r.status_code == 401
 
 
+# ---------- Bulk import & follow_up_date ----------
+class TestBulkAndFollowUp:
+    def test_bulk_create_and_persist(self, new_user_session):
+        items = [
+            {"company_name": "TEST_Bulk1", "job_title": "Eng", "day_applied": "2026-08-01",
+             "start_date_tbd": True, "status": "Applied", "follow_up_date": "2026-08-05"},
+            {"company_name": "TEST_Bulk2", "job_title": "PM", "day_applied": "2026-07-20",
+             "start_date_tbd": True, "status": "Screening", "pay_amount": 55.0, "pay_period": "hourly"},
+        ]
+        r = new_user_session.post(f"{BASE_URL}/api/applications/bulk", json=items, timeout=30)
+        assert r.status_code == 200, r.text
+        assert r.json()["created"] == 2
+
+        # Verify persistence via GET
+        listing = new_user_session.get(f"{BASE_URL}/api/applications", timeout=30).json()
+        companies = {a["company_name"] for a in listing}
+        assert "TEST_Bulk1" in companies
+        assert "TEST_Bulk2" in companies
+        b1 = next(a for a in listing if a["company_name"] == "TEST_Bulk1")
+        assert b1["follow_up_date"] == "2026-08-05"
+        assert b1["status"] == "Applied"
+
+        # Cleanup
+        for a in listing:
+            if a["company_name"].startswith("TEST_Bulk"):
+                new_user_session.delete(f"{BASE_URL}/api/applications/{a['app_id']}", timeout=30)
+
+    def test_bulk_validation_error(self, new_user_session):
+        # Missing required fields -> should 422
+        r = new_user_session.post(f"{BASE_URL}/api/applications/bulk",
+                                  json=[{"company_name": "", "job_title": "x", "day_applied": "2026-01-01"}],
+                                  timeout=30)
+        assert r.status_code == 422
+
+    def test_bulk_unauth(self):
+        r = requests.post(f"{BASE_URL}/api/applications/bulk",
+                          json=[{"company_name": "X", "job_title": "Y", "day_applied": "2026-01-01"}],
+                          timeout=30)
+        assert r.status_code == 401
+
+    def test_demo_has_followup_dates(self, demo_session):
+        apps = demo_session.get(f"{BASE_URL}/api/applications", timeout=30).json()
+        fu = [a for a in apps if a.get("follow_up_date")]
+        assert len(fu) >= 1, "Expected seeded apps to include follow_up_date"
+
+
 # ---------- Analytics ----------
 class TestAnalytics:
     def test_demo_analytics(self, demo_session):

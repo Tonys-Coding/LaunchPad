@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 import AuthCallback from "@/pages/AuthCallback";
 import Dashboard from "@/pages/Dashboard";
 import Applications from "@/pages/Applications";
+import Board from "@/pages/Board";
 import Settings from "@/pages/Settings";
 
 function FullScreenLoader() {
@@ -40,6 +41,7 @@ function AppRouter() {
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/applications" element={<ProtectedRoute><Applications /></ProtectedRoute>} />
+      <Route path="/board" element={<ProtectedRoute><Board /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

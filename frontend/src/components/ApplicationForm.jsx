@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { DatePicker } from "@/components/DatePicker";
 
 const STATUSES = ["Applied", "Screening", "Interviewing", "Offer", "Rejected"];
 const CONFIDENCE = ["Low", "Medium", "High"];
@@ -16,7 +17,8 @@ const PERIODS = [
 const empty = {
   company_name: "", job_title: "", day_applied: new Date().toISOString().slice(0, 10),
   expected_start_date: "", start_date_tbd: false, company_domain: "",
-  description: "", pay_amount: "", pay_period: "yearly", confidence_level: "", status: "Applied",
+  description: "", pay_amount: "", pay_period: "yearly", confidence_level: "",
+  follow_up_date: "", status: "Applied",
 };
 
 export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
@@ -27,7 +29,7 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
   useEffect(() => {
     if (open) {
       setError("");
-      setForm(initial ? { ...empty, ...initial, pay_amount: initial.pay_amount ?? "", expected_start_date: initial.expected_start_date || "", confidence_level: initial.confidence_level || "", company_domain: initial.company_domain || "" } : empty);
+      setForm(initial ? { ...empty, ...initial, pay_amount: initial.pay_amount ?? "", expected_start_date: initial.expected_start_date || "", follow_up_date: initial.follow_up_date || "", confidence_level: initial.confidence_level || "", company_domain: initial.company_domain || "" } : empty);
     }
   }, [open, initial]);
 
@@ -52,6 +54,7 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
         pay_amount: form.pay_amount === "" ? null : Number(form.pay_amount),
         pay_period: form.pay_amount === "" ? null : form.pay_period,
         confidence_level: form.confidence_level || null,
+        follow_up_date: form.follow_up_date || null,
         status: form.status,
       };
       await onSubmit(payload);
@@ -89,12 +92,14 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
           </div>
           <div>
             <label className={label}>Day applied *</label>
-            <input data-testid="form-day-applied" type="date" className={field} value={form.day_applied} onChange={(e) => set("day_applied", e.target.value)} />
+            <DatePicker testid="form-day-applied" value={form.day_applied} onChange={(v) => set("day_applied", v)} placeholder="Select date" />
           </div>
           <div>
             <label className={label}>Expected start date</label>
             <div className="flex items-center gap-2">
-              <input data-testid="form-start-date" type="date" disabled={form.start_date_tbd} className={`${field} disabled:opacity-40`} value={form.expected_start_date} onChange={(e) => set("expected_start_date", e.target.value)} />
+              <div className="flex-1">
+                <DatePicker testid="form-start-date" value={form.start_date_tbd ? "" : form.expected_start_date} onChange={(v) => set("expected_start_date", v)} disabled={form.start_date_tbd} placeholder="Select date" clearable />
+              </div>
               <button type="button" data-testid="form-tbd-toggle" onClick={() => set("start_date_tbd", !form.start_date_tbd)} className={`whitespace-nowrap px-3 py-2.5 rounded-lg text-xs font-semibold border transition-colors ${form.start_date_tbd ? "bg-brand text-on-brand border-brand" : "border-outline-variant text-on-surface-variant"}`}>
                 TBD
               </button>
@@ -125,6 +130,10 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
               <option value="">—</option>
               {CONFIDENCE.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+          </div>
+          <div>
+            <label className={label}>Follow-up reminder (optional)</label>
+            <DatePicker testid="form-follow-up" value={form.follow_up_date} onChange={(v) => set("follow_up_date", v)} placeholder="Remind me to follow up" clearable />
           </div>
           <div className="sm:col-span-2">
             <label className={label}>Description (optional)</label>

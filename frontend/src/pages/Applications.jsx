@@ -1,14 +1,21 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Search, Pencil, Trash2, DollarSign, Calendar, Gauge } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { Plus, Search, Pencil, Trash2, DollarSign, Calendar, Gauge, Download, Upload, Clock, AlertTriangle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { ApplicationForm } from "@/components/ApplicationForm";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { followUpState } from "@/lib/constants";
+import { toCSV, parseCSV, downloadCSV } from "@/lib/csv";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import api from "@/lib/api";
+
+const CSV_HEADERS = [
+  "company_name", "job_title", "day_applied", "expected_start_date", "start_date_tbd",
+  "follow_up_date", "status", "pay_amount", "pay_period", "confidence_level", "company_domain", "description",
+];
 
 const STATUS_COLORS = {
   Applied: "#8d90a0", Screening: "#7bd0ff", Interviewing: "#2563eb", Offer: "#ffb596", Rejected: "#ffb4ab",
@@ -30,6 +37,7 @@ export default function Applications() {
   const [deleteId, setDeleteId] = useState(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const fileRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +83,56 @@ export default function Applications() {
   const openNew = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (app) => { setEditing(app); setFormOpen(true); };
 
+  const exportCsv = () => {
+    if (apps.length === 0) { toast.error("Nothing to export"); return; }
+    const csv = toCSV(CSV_HEADERS, apps);
+    downloadCSV(`careertrack-applications-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    toast.success(`Exported ${apps.length} applications`);
+  };
+
+  const importCsv = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) { toast.error("CSV is empty"); return; }
+      const header = rows[0].map((h) => h.trim());
+      const idx = (name) => header.indexOf(name);
+      const items = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const get = (name) => { const i = idx(name); return i >= 0 ? (row[i] ?? "").trim() : ""; };
+        const company = get("company_name");
+        const title = get("job_title");
+        const applied = get("day_applied");
+        if (!company || !title || !applied) continue;
+        const payRaw = get("pay_amount");
+        items.push({
+          company_name: company,
+          job_title: title,
+          day_applied: applied,
+          expected_start_date: get("expected_start_date") || null,
+          start_date_tbd: /^(true|1|yes|tbd)$/i.test(get("start_date_tbd")),
+          follow_up_date: get("follow_up_date") || null,
+          status: get("status") || "Applied",
+          pay_amount: payRaw ? Number(payRaw) : null,
+          pay_period: get("pay_period") || (payRaw ? "yearly" : null),
+          confidence_level: get("confidence_level") || null,
+          company_domain: get("company_domain") || null,
+          description: get("description") || null,
+        });
+      }
+      if (items.length === 0) { toast.error("No valid rows found (need company, job title, day applied)"); return; }
+      const { data } = await api.post("/applications/bulk", items);
+      toast.success(`Imported ${data.created} applications`);
+      await load();
+    } catch {
+      toast.error("Failed to import CSV");
+    }
+  };
+
   return (
     <Layout title="Applications" onAddApplication={openNew}>
       {/* Controls */}
@@ -92,6 +150,13 @@ export default function Applications() {
         <button onClick={openNew} data-testid="applications-add-button" className="bg-brand text-on-brand rounded-xl px-5 py-2.5 font-semibold flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all">
           <Plus size={18} /> Add Application
         </button>
+        <button onClick={exportCsv} data-testid="applications-export" className="rounded-xl px-4 py-2.5 font-semibold flex items-center justify-center gap-2 border border-outline-variant text-on-surface hover:bg-surface-mid transition-colors">
+          <Download size={18} /> Export
+        </button>
+        <button onClick={() => fileRef.current?.click()} data-testid="applications-import" className="rounded-xl px-4 py-2.5 font-semibold flex items-center justify-center gap-2 border border-outline-variant text-on-surface hover:bg-surface-mid transition-colors">
+          <Upload size={18} /> Import
+        </button>
+        <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={importCsv} className="hidden" data-testid="applications-import-input" />
       </div>
 
       {/* Filter chips */}
@@ -148,6 +213,17 @@ export default function Applications() {
                         <Gauge size={13} /> {app.confidence_level}
                       </span>
                     )}
+                    {(() => {
+                      const fu = followUpState(app);
+                      if (!fu) return null;
+                      const c = fu.level === "overdue" ? "#ffb4ab" : fu.level === "soon" ? "#ffb596" : "#7bd0ff";
+                      return (
+                        <span data-testid={`followup-${app.app_id}`} className="flex items-center gap-1 font-medium px-1.5 py-0.5 rounded" style={{ color: c, backgroundColor: c + "22" }}>
+                          {fu.level === "overdue" ? <AlertTriangle size={12} /> : <Clock size={12} />}
+                          {fu.level === "overdue" ? `Follow up ${fu.days}d overdue` : fu.level === "soon" ? `Follow up ${fu.days === 0 ? "today" : "in " + fu.days + "d"}` : `Follow up in ${fu.days}d`}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {app.description && <p className="text-sm text-on-surface-variant mt-3 line-clamp-2">{app.description}</p>}

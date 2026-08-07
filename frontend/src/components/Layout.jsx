@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Briefcase, Settings, Plus, LogOut, Menu, X, Home, List } from "lucide-react";
+import { LayoutDashboard, Briefcase, Settings, Plus, LogOut, Menu, X, Home, List, Columns3 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
   { to: "/applications", label: "Applications", icon: Briefcase, testid: "nav-applications" },
+  { to: "/board", label: "Board", icon: Columns3, testid: "nav-board" },
   { to: "/settings", label: "Settings", icon: Settings, testid: "nav-settings" },
 ];
 
 const mobileNav = [
   { to: "/dashboard", label: "Home", icon: Home, testid: "mnav-dashboard" },
   { to: "/applications", label: "Apps", icon: List, testid: "mnav-applications" },
+  { to: "/board", label: "Board", icon: Columns3, testid: "mnav-board" },
   { to: "/settings", label: "Profile", icon: Settings, testid: "mnav-settings" },
 ];
 
