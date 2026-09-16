@@ -1,35 +1,164 @@
-# Launchpad
+<div align="center">
+  <img src="frontend/public/launchpad-full.png" alt="LaunchPad" width="420" />
 
-Launchpad is a self-hosted job and internship application tracker with a private calendar and career evidence library. It includes an analytics dashboard, application list, Kanban board, unified events/interviews/follow-ups, reusable skills, experience and project records, notes, CSV import/export, file attachments, optional Google Calendar export, and a companion Chrome extension.
+  <h3>Your job search has a lot of moving pieces. LaunchPad gives them one home.</h3>
 
-The local stack is independent of Emergent:
+  <p>
+    Track applications, remember every follow-up, prepare stronger interview stories,
+    and keep your next opportunity moving forward.
+  </p>
+</div>
 
-- React frontend served by Caddy
-- FastAPI backend
-- MongoDB for accounts, sessions, applications, events, skills, experience records, and encrypted integration records
-- MinIO for resume and job-description attachments
+## Welcome to LaunchPad
+
+LaunchPad is a private career workspace for students, early-career candidates, and anyone who wants a calmer way to manage a job search. It brings applications, deadlines, interviews, notes, documents, goals, and career accomplishments together without turning the process into another full-time job.
+
+This repository contains the independent, self-hosted version of LaunchPad. It runs on infrastructure you control and does not depend on Emergent services.
+
+## What you can do
+
+- **See your whole search at a glance.** Use the dashboard, application list, and Kanban board to understand what is moving and what needs attention.
+- **Stay ahead of important dates.** Keep events, interviews, and follow-ups in one calendar, with optional export to a dedicated Google Calendar.
+- **Build momentum.** Set a daily or weekly application goal and watch your progress update as applications are added.
+- **Remember your strongest work.** Save skills, experiences, projects, accomplishments, and interview notes in the Career Library.
+- **Keep the details nearby.** Add notes, compensation information, reminders, resumes, and job descriptions to each application.
+- **Spend less time typing.** Import and export CSV files, capture event flyers, read structured job pages, and optionally improve extracted details with Gemini.
+- **Add things while you browse.** The companion Chrome extension supports application capture, quick events, persistent drafts, and a compact weekly calendar.
+
+## A quick look at the experience
+
+| Area | What it helps with |
+| --- | --- |
+| Dashboard | Progress, goals, upcoming interviews, follow-ups, and key application numbers |
+| Applications | Searchable records, details, notes, attachments, CSV import, and CSV export |
+| Board | A visual pipeline from Applied through Offer or Rejected |
+| Calendar | Events, interviews, follow-ups, reminders, flyer capture, and optional Google sync |
+| Career Library | Reusable skills, experience, projects, accomplishments, and top strengths |
+| Settings | Profile, preferences, connected services, sessions, data export, and account deletion |
+| Extension | Fast application and event capture without leaving the page you are viewing |
 
 ## Start locally
 
-Requirements: Docker Desktop or another Docker installation with Compose support.
+You only need Docker Desktop, or another Docker installation with Compose support.
 
 ```bash
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080), choose **Sign up**, and create an account. Data is stored in named Docker volumes and survives container restarts.
-
-Stop the application without deleting data:
+Open [http://localhost:8080](http://localhost:8080), choose **Sign up**, and create your account. The database starts empty, and your data remains in Docker volumes when the containers stop.
 
 ```bash
 docker compose down
 ```
 
-To change local defaults, copy `.env.example` to `.env` and edit the values before starting the stack. Do not commit `.env`.
+To customize local settings, copy `.env.example` to `.env` before starting. Keep `.env` private and never commit it.
+
+### What runs locally
+
+- React frontend served by Caddy
+- FastAPI backend
+- MongoDB for accounts and private user data
+- MinIO for resume and job-description attachments
+
+Only the web application is exposed to your computer at `127.0.0.1:8080`. The database, object storage, and backend stay on the private Compose network.
+
+Check the running stack at any time:
+
+```bash
+./scripts/healthcheck.sh
+```
+
+The health endpoint is also available at [http://localhost:8080/api/health](http://localhost:8080/api/health).
+
+## Privacy by design
+
+LaunchPad is built around a simple rule: one user should never see another user's career data.
+
+- Every application, event, Career Library record, note, attachment, calendar connection, and analytics request is scoped to the authenticated user.
+- Requests for another user's record return the same `404` response as a record that does not exist.
+- Session tokens are stored in an HTTP-only cookie, and only one-way hashes are stored in MongoDB.
+- Google credentials are encrypted, never returned to the browser, and used only for the connection the user chose to create.
+- The Google Calendar integration manages a separate calendar named **LaunchPad** and does not import unrelated personal calendars.
+- Uploaded flyer and job screenshots are processed as drafts and are not saved automatically.
+
+MongoDB does not call this row-level security, but the API applies the equivalent ownership boundary to every private operation.
+
+## Chrome extension
+
+The unpacked extension lives in `extension/` and currently points to the local app at `http://localhost:8080`.
+
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Choose **Load unpacked** and select the `extension/` directory.
+4. Sign in from the popup, or reuse the website session from the same Chrome profile.
+
+Version 1.8.0 includes persistent application and event drafts, shared Simple/Advanced application fields, no-AI page grabbing, structured `JobPosting` reading, cropped screenshot capture, optional AI improvement, a weekly event view, and a direct Settings shortcut.
+
+The ready-to-download local archive is available at `frontend/public/launchpad-extension.zip`.
+
+Before publishing the extension, replace the localhost URL, restrict backend CORS to the final extension ID, review the requested permissions, and rebuild the archive.
+
+## Optional AI assistance
+
+Local flyer extraction remains available without an AI account. When a flyer or job posting is difficult to read, **Improve with AI** can send only the selected image and limited OCR text—or the limited job-page text the user explicitly chose to read—to Gemini Flash-Lite.
+
+The AI request:
+
+- never runs automatically;
+- returns an editable draft rather than saving anything;
+- leaves the local draft intact if the provider fails; and
+- is protected by a per-user daily limit.
+
+Add `GEMINI_API_KEY` to `.env` and recreate the backend to enable it. `GEMINI_MODEL` can override the configured model, and `AI_FLYER_DAILY_LIMIT` controls the daily cost guardrail.
+
+## Google sign-in
+
+Google sign-in uses an OAuth web client owned by the LaunchPad operator. It requests only `openid`, `email`, and `profile`, and it links accounts only when Google provides the same verified email address.
+
+For local development:
+
+1. Configure the OAuth consent screen in Google Cloud.
+2. Create an OAuth 2.0 client with application type **Web application**.
+3. Add this exact redirect URI:
+
+```text
+http://localhost:8080/api/auth/google/callback
+```
+
+4. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `PUBLIC_BASE_URL=http://localhost:8080` in `.env`.
+5. Recreate the backend:
+
+```bash
+docker compose up --build -d backend
+```
+
+The Google button stays hidden when credentials are absent. While the consent screen is in testing mode, remember to add each permitted Google account as a test user.
+
+## Optional Google Calendar export
+
+LaunchPad always saves events locally first. Calendar access is requested only when a user clicks **Connect Google Calendar**.
+
+1. Enable the Google Calendar API in the same Google Cloud project.
+2. Add this second redirect URI:
+
+```text
+http://localhost:8080/api/integrations/google-calendar/callback
+```
+
+3. Add permitted accounts as consent-screen test users.
+4. Generate and save a token-encryption key as `GOOGLE_CALENDAR_TOKEN_KEY`:
+
+```bash
+openssl rand -base64 32 | tr '+/' '-_'
+```
+
+5. Recreate the backend with `docker compose up --build -d backend`.
+
+Do not rotate or lose this key while connections exist. Disconnecting removes LaunchPad's encrypted credential but intentionally leaves the dedicated calendar and its events in the connected Google account.
 
 ## Optional demo data
 
-The default database is empty. To seed the historical ten-record demo account, set these values in a root `.env` file:
+The default database is empty. If you want a sample account with ten historical applications, add this to your local `.env`:
 
 ```dotenv
 SEED_DEMO_DATA=true
@@ -37,48 +166,43 @@ DEMO_EMAIL=local-demo@example.test
 DEMO_PASSWORD=choose-a-local-password
 ```
 
-Do not enable the demo account in a public deployment.
-
-## Services
-
-Only the web application is published to the host, at `127.0.0.1:8080`. MongoDB, MinIO, and the backend remain on the private Compose network. The browser uses one origin for the frontend and `/api`, which keeps authentication cookies and attachment downloads straightforward.
-
-The backend health endpoint is available at [http://localhost:8080/api/health](http://localhost:8080/api/health).
-
-Run the repeatable health check at any time:
-
-```bash
-./scripts/healthcheck.sh
-```
+Never enable the demo account in a public deployment.
 
 ## Backups and restores
 
-Create a complete snapshot of MongoDB and all stored attachments:
+Create a local snapshot of MongoDB and stored attachments:
 
 ```bash
 ./scripts/backup.sh
 ```
 
-Backups are written beneath `backups/`, include checksums, and are ignored by Git. To choose a different destination, pass its path as the first argument.
+Backups are written beneath `backups/`, include checksums, and are ignored by Git.
 
-A restore replaces the current database and attachment bucket. Stop using the app while it runs and pass the explicit confirmation flag:
+A restore replaces the current database and attachment bucket. Stop using the app while it runs and provide the explicit confirmation flag:
 
 ```bash
 ./scripts/restore.sh --yes backups/20260908T120000Z
 ```
 
-## Production deployment
+## Invite-only production beta
 
-The production overlay is configured for an invite-only web beta. It enables authenticated MongoDB access, a private externally provisioned S3-compatible attachment bucket, HTTPS, secure cookies, an exact host and CORS allowlist, Google-only new accounts, API rate limits, free-tier quotas, structured logs, and disabled API documentation. The Chrome extension remains local-only until its separate production release. Local development continues to use the private MinIO container; production does not start it.
+The production configuration is intentionally conservative. It uses HTTPS, secure cookies, exact host and CORS allowlists, Google-only new accounts, an email allowlist, authenticated MongoDB, a private S3-compatible attachment bucket, rate limits, free-tier quotas, structured logs, and disabled API documentation.
 
-On a Linux server with Docker Compose:
+Before inviting anyone:
 
-1. Point a domain's DNS record at the server.
-2. Pre-provision a private S3-compatible bucket and an application credential limited to listing, reading, writing, and deleting objects in only that bucket. LaunchPad does not require storage-admin or bucket-creation permission.
-3. Copy `.env.production.example` to `.env.production` and replace every placeholder, including the bucket endpoint, name, region, and scoped credential. Put every invited Google email in `BETA_ALLOWED_EMAILS`. Generate the MongoDB replica-set key file described in that example and keep it outside the repository with mode `0400`.
-4. In Google Cloud, add the HTTPS login and Calendar callback URLs, keep the consent screen in testing mode, and add the same invited users as test users.
-5. Allow inbound ports 80 and 443 in the server firewall.
-6. Start the production stack:
+1. Point your domain to a Linux server with Docker Compose.
+2. Provision a private S3-compatible bucket and a credential limited to that bucket.
+3. Copy `.env.production.example` to `.env.production` and replace every placeholder.
+4. Add invited addresses to `BETA_ALLOWED_EMAILS` and to the Google consent screen's test users.
+5. Add the production login and Calendar callback URLs to the Google OAuth client.
+6. Generate the MongoDB replica-set key file described in the environment example.
+7. Verify storage access:
+
+```bash
+./scripts/test-production-storage-config.sh
+```
+
+8. Start the production stack:
 
 ```bash
 docker compose \
@@ -88,111 +212,46 @@ docker compose \
   up --build -d
 ```
 
-Caddy obtains and renews the domain's TLS certificate automatically. New email/password registration is disabled in this mode, but existing email/password accounts can still sign in. Do not use local passwords or reuse secrets on a public server.
-
-`LAUNCHPAD_RELEASE` gives all three application images a fixed beta tag rather
-than the mutable `latest` tag. Change it for each release. Before starting the
-stack, verify the scoped storage credential without exposing it:
-
-```bash
-./scripts/test-production-storage-config.sh
-```
-
-The production application refuses to render its Compose configuration when any
-S3 setting is missing. The bucket must already exist. The health endpoint checks
-both MongoDB and that bucket, and the encrypted backup/restore scripts use the same
-S3-compatible interface. Keep provider-side public access disabled and enable the
-provider's own retention or recovery controls if available; LaunchPad's off-server
-encrypted backups remain required regardless.
-
-MongoDB runs as a single-member replica set so application quota checks and writes can be transactional. This enables atomic writes but is not high availability or a substitute for off-server backups. See the [verified upgrade checkpoint](docs/mongo-replica-upgrade.md) before recreating a stack that already contains data.
+Caddy obtains and renews TLS certificates automatically. Production does not start the local MinIO service; it requires the pre-provisioned private bucket.
 
 ### Production backups and monitoring
 
-Install `rclone`, configure the remote named by `BACKUP_REMOTE`, then run the encrypted backup once and verify the uploaded `.enc` and checksum files:
+Configure the `rclone` remote named by `BACKUP_REMOTE`, then create an encrypted off-server backup:
 
 ```bash
 ./scripts/backup-production.sh
 ```
 
-Daily backups are retained for seven days and Sunday snapshots for four weeks. Restore one into a clean environment before inviting users:
+Daily backups retain seven daily and four weekly snapshots. Complete a clean restore before inviting users:
 
 ```bash
 ./scripts/restore-production.sh --yes backups/production/launchpad-TIMESTAMP.tar.gz.enc
 ```
 
-The `ops/` directory contains systemd service and timer templates for daily backups and five-minute production checks. They assume the app is installed at `/opt/launchpad`; change that path if needed, copy the units to `/etc/systemd/system`, then enable both timers. `production-check.sh` verifies the public health endpoint, containers, disk usage, and recent off-server backups. Set `ALERT_WEBHOOK_URL` to deliver failures to a compatible webhook and also configure an independent uptime monitor for `https://YOUR_DOMAIN/api/health`.
+The `ops/` directory contains systemd templates for daily backups and five-minute production checks. Configure an independent uptime monitor for `https://YOUR_DOMAIN/api/health` and set `ALERT_WEBHOOK_URL` if you want operational failures delivered to a compatible webhook.
 
-Before each beta release, run the backend tests, frontend production build, dependency audit, and the bounded security review described in the release checklist. Do not invite users until the clean-server restore drill succeeds. Any temporary invite-beta security exception must be written down and removed before a public launch.
+Read the [production-readiness checklist](docs/production-readiness.md), [storage security assessment](docs/storage-security-assessment.md), and [clean-server beta drill](docs/clean-server-beta-drill.md) before launch. A single MongoDB replica-set member enables transactional writes but is not high availability and does not replace off-server backups.
 
-See [Production readiness and security findings](docs/production-readiness.md) for the current release blockers and verified checks. Container release scans must include vulnerabilities without published fixes; a fixable-only scan is not sufficient.
+## Development and verification
 
-## Chrome extension
+Backend variables are documented in `backend/.env.example`; frontend variables are in `frontend/.env.example`. The production frontend calls the API through same-origin `/api`.
 
-The unpacked extension in `extension/` is configured for the local site at `http://localhost:8080`. Load the directory from `chrome://extensions` with Developer mode enabled, then sign in directly in the popup. It can also reuse a website session when that session belongs to the same Chrome profile. Version 1.8.0 includes the unified Launchpad interface, a Settings shortcut, persistent event and application drafts, shared Simple/Advanced application data, no-AI tab grabbing, structured job-page reading, cropped event-flyer and job-posting capture, optional AI improvement, a compact weekly calendar with a legacy list view, and Google sync.
+The continuous-integration workflow runs:
 
-For a public deployment, replace the local URL in `extension/popup.js` and `extension/manifest.json`, restrict backend CORS to the installed extension ID, and rebuild `frontend/public/launchpad-extension.zip`.
+- 81 backend tests against an isolated Docker Compose stack;
+- 22 frontend tests;
+- the production frontend build;
+- extension JavaScript, manifest, DOM-reference, structured `JobPosting`, and archive checks.
 
-Event-flyer and job-posting screenshots are read by the self-hosted OCR service and discarded immediately. Use **Scan flyer** on the Calendar page to paste, drop, or upload a screenshot, or use the extension capture buttons to draw a full-resolution crop around an event or job listing on the visible browser tab. Small embedded images can be zoomed before the final crop. Extracted details always open as an editable draft and are never saved automatically. Events may also record an optional organizer such as a club, department, company, or person.
-
-For difficult flyers or postings, an optional **Improve with AI** button sends only the selected image with limited OCR text, or the limited job-page text extracted after **Read job page**, to Gemini Flash-Lite. It never runs automatically. Add `GEMINI_API_KEY` to `.env` and recreate the backend to enable it. New API accounts use `gemini-3.5-flash-lite` because Google no longer makes 2.5 Flash-Lite available to them; `GEMINI_MODEL` can override the model later. `AI_FLYER_DAILY_LIMIT` defaults to 20 successful or attempted provider calls per user per UTC day across all capture types, providing a hard cost guardrail. Local extraction remains available when Gemini is disabled, unavailable, or the daily limit is reached.
-
-## Authentication status
-
-Email/password registration and login are fully local. Direct Google sign-in uses an OAuth web client owned by the operator and links to an existing account only when Google supplies the same verified email address. Launchpad requests only the `openid`, `email`, and `profile` scopes and does not store Google access or refresh tokens.
-
-### Enable Google sign-in locally
-
-1. In Google Cloud Console, configure the OAuth consent screen and create an OAuth 2.0 client with application type **Web application**.
-2. Add this exact authorized redirect URI:
-
-```text
-http://localhost:8080/api/auth/google/callback
-```
-
-3. Copy `.env.example` to `.env`, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and keep `PUBLIC_BASE_URL=http://localhost:8080`.
-4. Recreate the backend with `docker compose up --build -d backend`.
-
-The Google button remains hidden when credentials are absent. If the consent screen is in testing mode, add the Google accounts that may sign in as test users.
-
-For production, add `https://YOUR_DOMAIN/api/auth/google/callback` to the same web client and place the credentials in `.env.production`.
-
-### Enable Google Calendar export
-
-Launchpad always saves events locally first. Connecting Calendar is optional, requests access only when a user clicks **Connect Google Calendar**, and creates a separate Google calendar named **LaunchPad**. It never imports or reads unrelated personal calendars. Each Launchpad user owns a separate encrypted connection record and may connect a Google account different from the account used to sign in.
-
-1. Enable the **Google Calendar API** in the same Google Cloud project.
-2. Add this second exact URI to the existing OAuth web client:
-
-```text
-http://localhost:8080/api/integrations/google-calendar/callback
-```
-
-3. Keep the consent screen in testing mode if desired and add each permitted Google account as a test user. The app requests the narrow `calendar.app.created` scope in addition to identity scopes.
-4. Generate a token-encryption key once and save it as `GOOGLE_CALENDAR_TOKEN_KEY` in `.env`:
-
-```bash
-openssl rand -base64 32 | tr '+/' '-_'
-```
-
-5. Recreate the backend with `docker compose up --build -d backend`.
-
-Do not rotate or lose this key while connections exist; doing so makes stored Google refresh tokens unreadable. Disconnecting removes the encrypted credential but intentionally leaves the dedicated Google calendar and its events in the connected account. For production, add the HTTPS version of the Calendar callback URI and use a separately generated key in `.env.production`.
-
-Cookie behavior is environment-controlled. Local Compose uses HTTP-compatible cookies. A public HTTPS deployment must set `COOKIE_SECURE=true` and should use an exact CORS allowlist.
-Sessions use a persistent, HTTP-only cookie for 30 days by default (`SESSION_DAYS` can change this), and only a one-way hash of each session token is stored in MongoDB. Google sign-in always presents the account chooser so signing out does not silently sign the same Google account back in.
-
-MongoDB does not provide PostgreSQL-style row-level security, so Launchpad applies the equivalent ownership boundary in the API: every application, event, skill, experience record, calendar feed, Google connection, note, attachment, analytics, and sync operation includes the authenticated user's `user_id`. Cross-user record requests receive the same `404` as an unknown record, and internal object-storage paths, Google event identifiers, access tokens, and refresh tokens are not returned to browsers.
-
-## Development without Compose
-
-Backend variables are documented in `backend/.env.example`; frontend variables are documented in `frontend/.env.example`. The production frontend always calls the API through same-origin `/api`.
-
-## Persistent data
-
-Compose creates two named volumes:
+Local data lives in these named volumes:
 
 - `launchpad_mongo_data`
 - `launchpad_minio_data`
 
-Running `docker compose down` preserves them. Running `docker compose down --volumes` permanently deletes the local database and attachments.
+`docker compose down` keeps them. `docker compose down --volumes` permanently deletes the local database and attachments.
+
+## Project status
+
+LaunchPad is preparing for a small, invite-only beta. The web experience is the first release target; the Chrome extension will follow after production packaging and store review.
+
+If you are trying LaunchPad, thank you. Job searching can be uncertain and exhausting—the goal of this project is to make the practical parts feel a little more organized, a little more visible, and a lot less lonely.
