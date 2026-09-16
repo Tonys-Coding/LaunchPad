@@ -1,38 +1,19 @@
-# Auth Testing Playbook (CareerTrack)
+# Authentication testing
 
-Unified auth: opaque `session_token` cookie for BOTH email/password and Google login.
+Launchpad uses an opaque `session_token` for email/password authentication. The backend sets it as an HTTP-only cookie, and the Chrome extension may send the same token as a bearer credential.
 
-## Demo credentials
-- Email: demo@careertrack.com / Password: demo1234 (seeded with 10 sample applications)
+Start the local stack, then create a unique test account:
 
-## Backend API tests
-```
-# Register / login
-curl -c cookies.txt -X POST http://localhost:8001/api/auth/login \
+```bash
+curl -c cookies.txt -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"demo@careertrack.com","password":"demo1234"}'
+  -d '{"email":"local-test@example.com","password":"replace-this-password","name":"Local Test"}'
 
-# Current user via cookie
-curl -b cookies.txt http://localhost:8001/api/auth/me
-
-# List applications
-curl -b cookies.txt http://localhost:8001/api/applications
-
-# Analytics
-curl -b cookies.txt http://localhost:8001/api/analytics
+curl -b cookies.txt http://localhost:8080/api/auth/me
+curl -b cookies.txt http://localhost:8080/api/applications
+curl -b cookies.txt http://localhost:8080/api/analytics
 ```
 
-## MongoDB verification
-```
-mongosh
-use test_database
-db.users.findOne({email: "demo@careertrack.com"})   // password_hash starts with $2b$
-db.applications.countDocuments({})                   // ~10 seeded
-db.user_sessions.find().limit(2)
-```
+Local Compose uses `Secure=false` and `SameSite=Lax` so cookies work over localhost HTTP. A public HTTPS deployment must use `COOKIE_SECURE=true` and an exact CORS allowlist.
 
-## Notes
-- Cookies: httpOnly, secure, samesite=none, path=/
-- Google login flow: frontend redirects to https://auth.emergentagent.com/?redirect=<origin>/dashboard
-  then AuthCallback POSTs /api/auth/session with X-Session-ID header.
-- All /applications and /analytics endpoints require auth and are scoped to the logged-in user.
+Google sign-in uses the operator-owned OAuth client and server-side authorization-code flow. In the invite-only production beta, new accounts are restricted by `BETA_ALLOWED_EMAILS`, and each invited address must also be added as a Google OAuth test user while the consent screen remains in testing mode. Existing email/password accounts can still sign in, but public email/password registration is disabled in production.
