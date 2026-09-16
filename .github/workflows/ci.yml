@@ -97,7 +97,7 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const manifest = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'));
-          if (manifest.version !== '1.8.0') throw new Error(`Unexpected extension version: ${manifest.version}`);
+          if (manifest.version !== '1.8.1') throw new Error(`Unexpected extension version: ${manifest.version}`);
           const html = fs.readFileSync('extension/popup.html', 'utf8');
           const js = fs.readFileSync('extension/popup.js', 'utf8');
           const ids = new Set([...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]));
@@ -111,4 +111,4 @@ jobs:
           NODE
           test -f frontend/public/launchpad-extension.zip
           unzip -t frontend/public/launchpad-extension.zip
-          unzip -p frontend/public/launchpad-extension.zip extension/manifest.json | grep -q '"version": "1.8.0"'
+          unzip -p frontend/public/launchpad-extension.zip extension/manifest.json | grep -q '"version": "1.8.1"'

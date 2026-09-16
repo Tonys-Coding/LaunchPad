@@ -5,9 +5,8 @@ calendar events from any tab — everything syncs instantly to your account.
 
 ## Features
 - **Quick add** an application (Simple or Advanced mode) that appears immediately in your account.
-- **Grab from page** — quickly fills the tab title and website without AI.
-- **Read job page** — reads structured `JobPosting` data and relevant visible listing text, then optionally improves the draft with Gemini.
-- **Capture image** — crop a job listing from the visible page, scan it locally, and optionally improve the draft with Gemini when the page cannot be read directly.
+- **Capture job** — reads structured `JobPosting` data and relevant visible listing text without AI.
+- **Capture with AI** — sends those extracted job-page details to Gemini Flash-Lite for a stronger application draft when explicitly selected.
 - **Shared application draft** — Simple and Advanced are two views of the same saved draft, so switching modes or closing the popup does not discard extracted fields.
 - **Live stats** — total applications, interviews, and offers at a glance.
 - **Recent applications** — a condensed list with company logos and status; click to open the full list.
@@ -16,7 +15,7 @@ calendar events from any tab — everything syncs instantly to your account.
 - **Settings shortcut** — open account settings directly from the popup header.
 - **Recoverable event drafts** — event fields and the active Events tab are restored if the popup closes before you save.
 - **Capture flyer** — takes a full-resolution screenshot of the visible tab, lets you crop or zoom into small flyers, then locally prefills a reviewable event draft without storing the image.
-- **Improve with AI** — optionally asks Gemini Flash-Lite to re-read only a selected flyer or job posting; it never runs automatically.
+- **Improve with AI** — optionally asks Gemini Flash-Lite to re-read a selected flyer; application AI capture also runs only when explicitly selected.
 - **Upcoming events** — browse a compact Monday–Sunday calendar one week at a time, or switch to the original 30-day list.
 - **Optional Google export** — when connected on the website, add an event to the dedicated LaunchPad Google calendar.
 - Uses your existing Launchpad login (no separate password) — session is shared with the website.

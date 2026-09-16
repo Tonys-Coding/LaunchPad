@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Launchpad — Job Tracker",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Add applications and private calendar events to your Launchpad account from any tab.",
   "action": {
     "default_popup": "popup.html",

@@ -70,17 +70,12 @@
       <section class="card">
         <div class="card-head">
           <span class="card-title">Add application</span>
-          <button id="grab-page-btn" class="chip" type="button" title="Fill the role and website from the current tab without AI">⤵ Grab from page</button>
         </div>
         <div class="application-source-actions" aria-label="Application capture options">
-          <button id="read-page-btn" class="chip" type="button" title="Read structured job details from the current webpage">⌁ Read job page</button>
-          <button id="capture-btn" class="chip" type="button" title="Crop an image of a job posting from the visible page">▣ Capture image</button>
+          <button id="capture-job-btn" class="chip" type="button" title="Fill the application using job details found on the current page without AI">⌁ Capture job</button>
+          <button id="capture-job-ai-btn" class="ai-button" type="button" title="Use Gemini to fill the application from job details found on the current page">✦ Capture with AI</button>
         </div>
         <div id="application-capture-result" class="capture-result hidden" role="status"></div>
-        <div id="application-ai-actions" class="ai-actions hidden">
-          <button id="improve-application-ai" class="ai-button" type="button">✦ Improve with AI</button>
-          <span id="application-ai-note">Uses Gemini only when clicked</span>
-        </div>
 
         <div class="field">
           <label>Company *</label>

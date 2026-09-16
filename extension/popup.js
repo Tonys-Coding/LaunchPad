@@ -13,11 +13,8 @@ let captureStart = null;
 let captureDragging = false;
 let capturePageUrl = null;
 let captureOriginalDataUrl = null;
-let capturePurpose = "event";
 let capturedFlyerBlob = null;
 let capturedFlyerResult = null;
-let capturedApplicationBlob = null;
-let capturedApplicationResult = null;
 let capturedApplicationSourceUrl = null;
 let capturedApplicationPageText = null;
 let capturedApplicationStructuredFields = null;
@@ -748,77 +745,17 @@ function fillApplicationFromPosting(result, fallbackUrl) {
       : "Application draft filled from the selected posting. Review it before saving.";
   note.classList.toggle("warn", warnings.length > 0);
   show("application-capture-result");
-  capturedApplicationResult = result;
-  if ((capturedApplicationBlob || capturedApplicationPageText) && !result.ai_enhanced) {
-    const button = $("improve-application-ai");
-    button.disabled = !result.ai_available;
-    button.textContent = "✦ Improve with AI";
-    $("application-ai-note").textContent = result.ai_available
-      ? "Uses Gemini only when clicked"
-      : "Add a Gemini API key to enable";
-    show("application-ai-actions");
-  } else {
-    hide("application-ai-actions");
-  }
   void saveApplicationDraft();
 }
 
-async function improveApplicationWithAi() {
-  if ((!capturedApplicationBlob && !capturedApplicationPageText) || !capturedApplicationResult?.ai_available) return;
-  const button = $("improve-application-ai");
-  button.disabled = true;
-  button.textContent = "Improving…";
-  $("application-ai-note").textContent = capturedApplicationPageText
-    ? "Gemini is reviewing the page details"
-    : "Gemini is re-reading the crop";
-  try {
-    let result;
-    if (capturedApplicationPageText) {
-      result = await api("/applications/improve-page", {
-        method: "POST",
-        body: JSON.stringify({
-          source_url: capturedApplicationSourceUrl,
-          page_text: capturedApplicationPageText,
-          structured_fields: capturedApplicationStructuredFields || {},
-          timezone: currentUserTimezone,
-        }),
-      });
-    } else {
-      const payload = new FormData();
-      payload.append("image", capturedApplicationBlob, "posting-selection.png");
-      payload.append("timezone", currentUserTimezone);
-      if (capturedApplicationSourceUrl && /^https?:\/\//i.test(capturedApplicationSourceUrl)) {
-        payload.append("source_url", capturedApplicationSourceUrl);
-      }
-      if (capturedApplicationResult.ocr_preview) payload.append("ocr_text", capturedApplicationResult.ocr_preview);
-      result = await api("/applications/improve-posting", { method: "POST", body: payload });
-    }
-    fillApplicationFromPosting(result, capturedApplicationSourceUrl);
-    toast("Application draft improved with AI");
-  } catch (failure) {
-    button.disabled = false;
-    button.textContent = "✦ Improve with AI";
-    $("application-ai-note").textContent = failure.message || "AI improvement failed; local draft kept";
-    toast(failure.message || "AI improvement failed", true);
-  }
-}
-
 function captureLabels() {
-  return capturePurpose === "application"
-    ? {
-        subject: "job posting",
-        title: "Crop the job posting",
-        help: "Drag around the listing details. Zoom in if the text appears small.",
-        reading: "Reading company, role, pay, and details…",
-        ready: "Selection ready. Analyze it to fill the application draft.",
-      }
-    : {
-        subject: "flyer",
-        title: "Crop the event flyer",
-        help: "Drag around the flyer. Zoom in if it appears small.",
-        reading: "Reading title, date, time, and location…",
-        ready: "Selection ready. Analyze it to fill the event draft.",
-      };
+  return {
+    subject: "flyer",
+    title: "Crop the event flyer",
+    help: "Drag around the flyer. Zoom in if it appears small.",
+    reading: "Reading title, date, time, and location…",
+    ready: "Selection ready. Analyze it to fill the event draft.",
+  };
 }
 
 function drawCaptureEditor() {
@@ -902,11 +839,10 @@ function closeCaptureEditor() {
   captureOriginalDataUrl = null;
 }
 
-function openCaptureEditor(dataUrl, pageUrl, { rememberOriginal = true, zoomed = false, purpose = capturePurpose } = {}) {
+function openCaptureEditor(dataUrl, pageUrl, { rememberOriginal = true, zoomed = false } = {}) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
-      capturePurpose = purpose;
       if (rememberOriginal) captureOriginalDataUrl = dataUrl;
       captureImage = image;
       capturePageUrl = pageUrl;
@@ -976,10 +912,9 @@ async function analyzeCapturedSelection() {
     return;
   }
   const button = $("capture-analyze");
-  const purpose = capturePurpose;
   const labels = captureLabels();
   button.disabled = true;
-  button.textContent = purpose === "application" ? "Reading posting…" : "Reading flyer…";
+  button.textContent = "Reading flyer…";
   $("capture-editor-status").textContent = labels.reading;
   $("capture-editor-status").classList.remove("err");
   try {
@@ -1000,30 +935,16 @@ async function analyzeCapturedSelection() {
       (blob) => blob ? resolve(blob) : reject(new Error("Couldn't crop the screenshot")), "image/png"
     ));
     const payload = new FormData();
-    payload.append("image", screenshot, purpose === "application" ? "posting-selection.png" : "flyer-selection.png");
+    payload.append("image", screenshot, "flyer-selection.png");
     payload.append("timezone", currentUserTimezone);
     if (capturePageUrl && /^https?:\/\//i.test(capturePageUrl)) payload.append("source_url", capturePageUrl);
-    if (purpose === "application") {
-      capturedApplicationBlob = screenshot;
-      capturedApplicationPageText = null;
-      capturedApplicationStructuredFields = null;
-    }
-    else capturedFlyerBlob = screenshot;
-    const result = await api(
-      purpose === "application" ? "/applications/extract-posting" : "/events/extract-flyer",
-      { method: "POST", body: payload },
-    );
+    capturedFlyerBlob = screenshot;
+    const result = await api("/events/extract-flyer", { method: "POST", body: payload });
     const sourceUrl = capturePageUrl;
     closeCaptureEditor();
-    if (purpose === "application") {
-      setTopTab("applications");
-      fillApplicationFromPosting(result, sourceUrl);
-      toast("Application draft filled");
-    } else {
-      setTopTab("events");
-      fillEventFromFlyer(result, sourceUrl);
-      toast("Event draft filled");
-    }
+    setTopTab("events");
+    fillEventFromFlyer(result, sourceUrl);
+    toast("Event draft filled");
   } catch (failure) {
     $("capture-editor-status").textContent = failure.message || `Couldn't read that selection. Try a tighter box around the ${labels.subject}.`;
     $("capture-editor-status").classList.add("err");
@@ -1042,7 +963,7 @@ async function captureEventFromPage() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) throw new Error("No active tab");
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-    await openCaptureEditor(dataUrl, tab.url, { purpose: "event" });
+    await openCaptureEditor(dataUrl, tab.url);
   } catch (failure) {
     const note = $("event-capture-result");
     note.textContent = failure.message || "Couldn't read this page. Try uploading a cropped screenshot in the calendar.";
@@ -1070,13 +991,10 @@ function resetForm() {
   $("f-follow").value = "";
   $("f-interview").value = "";
   $("f-desc").value = "";
-  capturedApplicationBlob = null;
-  capturedApplicationResult = null;
   capturedApplicationSourceUrl = null;
   capturedApplicationPageText = null;
   capturedApplicationStructuredFields = null;
   hide("application-capture-result");
-  hide("application-ai-actions");
 }
 
 function setMode(mode, persist = true) {
@@ -1256,10 +1174,11 @@ function extractJobPostingFromPage() {
   };
 }
 
-async function readApplicationPage() {
-  const button = $("read-page-btn");
+async function captureApplicationPage(useAi = false) {
+  const button = $(useAi ? "capture-job-ai-btn" : "capture-job-btn");
+  const idleLabel = useAi ? "✦ Capture with AI" : "⌁ Capture job";
   button.disabled = true;
-  button.textContent = "Reading…";
+  button.textContent = useAi ? "Improving…" : "Reading…";
   hide("application-capture-result");
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -1272,11 +1191,10 @@ async function readApplicationPage() {
     if (!extracted?.pageText || extracted.pageText.trim().length < 10) {
       throw new Error("This page did not expose enough readable job information");
     }
-    capturedApplicationBlob = null;
     capturedApplicationPageText = extracted.pageText;
     capturedApplicationStructuredFields = extracted.structuredFields || {};
     capturedApplicationSourceUrl = extracted.sourceUrl || tab.url || null;
-    const result = await api("/applications/extract-page", {
+    const result = await api(useAi ? "/applications/improve-page" : "/applications/extract-page", {
       method: "POST",
       body: JSON.stringify({
         source_url: capturedApplicationSourceUrl,
@@ -1286,70 +1204,16 @@ async function readApplicationPage() {
       }),
     });
     fillApplicationFromPosting(result, capturedApplicationSourceUrl);
-    toast("Application draft filled from page");
+    toast(useAi ? "Application draft filled with AI" : "Application draft filled from page");
   } catch (failure) {
     const note = $("application-capture-result");
-    note.textContent = failure.message || "Couldn't read this webpage. Use Capture image instead.";
+    note.textContent = failure.message || "Couldn't read enough job information from this webpage.";
     note.classList.add("warn");
     show("application-capture-result");
-    toast("Couldn't read the job page", true);
+    toast(useAi ? "AI couldn't read the job page" : "Couldn't read the job page", true);
   } finally {
     button.disabled = false;
-    button.textContent = "⌁ Read job page";
-  }
-}
-
-async function grabFromPage() {
-  const button = $("grab-page-btn");
-  button.disabled = true;
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) throw new Error("No active tab");
-    if (tab.url) {
-      try {
-        const host = new URL(tab.url).hostname.replace(/^www\./, "");
-        if (host && !/^(chrome|newtab)/.test(host)) $("f-domain").value = host;
-      } catch { /* ignore */ }
-    }
-    if (tab.title && !$("f-title").value) {
-      $("f-title").value = tab.title.split(/\s[|\-–—•·]\s/)[0].trim().slice(0, 80);
-    }
-    capturedApplicationBlob = null;
-    capturedApplicationPageText = null;
-    capturedApplicationStructuredFields = null;
-    capturedApplicationResult = null;
-    capturedApplicationSourceUrl = tab.url || null;
-    hide("application-capture-result");
-    hide("application-ai-actions");
-    setMode("advanced");
-    await saveApplicationDraft();
-    toast("Filled from current tab without AI");
-  } catch (failure) {
-    toast(failure.message || "Couldn't read the current tab", true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function captureApplicationFromPage() {
-  const button = $("capture-btn");
-  button.disabled = true;
-  button.textContent = "Preparing…";
-  hide("application-capture-result");
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) throw new Error("No active tab");
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-    await openCaptureEditor(dataUrl, tab.url, { purpose: "application" });
-  } catch (failure) {
-    const note = $("application-capture-result");
-    note.textContent = failure.message || "Couldn't read this page. Try opening the job posting and capturing it again.";
-    note.classList.add("warn");
-    show("application-capture-result");
-    toast("Couldn't capture the posting", true);
-  } finally {
-    button.disabled = false;
-    button.textContent = "▣ Capture image";
+    button.textContent = idleLabel;
   }
 }
 
@@ -1413,7 +1277,6 @@ document.addEventListener("DOMContentLoaded", () => {
   $("capture-zoom").addEventListener("click", zoomCaptureSelection);
   $("capture-reset").addEventListener("click", resetCaptureZoom);
   $("improve-event-ai").addEventListener("click", improveEventWithAi);
-  $("improve-application-ai").addEventListener("click", improveApplicationWithAi);
   $("capture-canvas").addEventListener("pointerdown", startCaptureSelection);
   $("capture-canvas").addEventListener("pointermove", moveCaptureSelection);
   $("capture-canvas").addEventListener("pointerup", finishCaptureSelection);
@@ -1430,9 +1293,8 @@ document.addEventListener("DOMContentLoaded", () => {
     field.addEventListener(eventName, () => void saveApplicationDraft());
   });
   $("save-btn").addEventListener("click", save);
-  $("grab-page-btn").addEventListener("click", grabFromPage);
-  $("read-page-btn").addEventListener("click", readApplicationPage);
-  $("capture-btn").addEventListener("click", captureApplicationFromPage);
+  $("capture-job-btn").addEventListener("click", () => captureApplicationPage(false));
+  $("capture-job-ai-btn").addEventListener("click", () => captureApplicationPage(true));
   $("f-tbd").addEventListener("change", (e) => {
     $("f-start").disabled = e.target.checked;
     void saveApplicationDraft();

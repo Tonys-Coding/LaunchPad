@@ -5,7 +5,7 @@ const { JSDOM } = require(path.join(__dirname, "..", "frontend", "node_modules",
 
 const popupSource = fs.readFileSync(path.join(__dirname, "..", "extension", "popup.js"), "utf8");
 const functionStart = popupSource.indexOf("function extractJobPostingFromPage()");
-const functionEnd = popupSource.indexOf("\n\nasync function readApplicationPage", functionStart);
+const functionEnd = popupSource.indexOf("\n\nasync function captureApplicationPage", functionStart);
 assert(functionStart >= 0 && functionEnd > functionStart, "JobPosting extraction function was not found");
 const functionSource = popupSource.slice(functionStart, functionEnd);
 

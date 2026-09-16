@@ -181,7 +181,8 @@ textarea:focus-visible {
 .card-head-actions { display: flex; align-items: center; gap: 6px; }
 .card-title { font-size: 14px; font-weight: 700; }
 .application-source-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -4px 0 12px; }
-.application-source-actions .chip { display: flex; align-items: center; justify-content: center; padding: 7px 8px; }
+.application-source-actions .chip,
+.application-source-actions .ai-button { display: flex; align-items: center; justify-content: center; min-height: 32px; padding: 7px 8px; }
 
 .chip,
 .connection-pill {
