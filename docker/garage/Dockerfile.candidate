@@ -1,0 +1,21 @@
+# Context is a generated release-artifact directory, never the LaunchPad project.
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:54df941ed0d06a1bd95ef5e0ce391fd8d9f94b64782dc9a60062727849ee3f97 AS gcc-runtime
+FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:8c563c1fb5e120606f0d85733049775faed6192e2bd2223ef283a5393eec22b9
+# The verified ARM64 binary needs libc/libm (base) and libgcc, not OpenSSL/zlib.
+# Preserve the added library's package metadata and licensing for scanner coverage.
+COPY --from=gcc-runtime /usr/lib/aarch64-linux-gnu/libgcc_s.so.1 /usr/lib/aarch64-linux-gnu/libgcc_s.so.1
+COPY --from=gcc-runtime /var/lib/dpkg/status.d/libgcc-s1* /var/lib/dpkg/status.d/
+COPY --from=gcc-runtime /var/lib/dpkg/status.d/gcc-14-base* /var/lib/dpkg/status.d/
+COPY --from=gcc-runtime /usr/share/doc/gcc-14-base/ /usr/share/doc/gcc-14-base/
+LABEL org.opencontainers.image.title="LaunchPad Garage storage candidate" \
+      org.opencontainers.image.version="2.4.1-launchpad-xml-h2-defensive" \
+      org.opencontainers.image.revision="268334bd2530fa99f8b06c7383b2e9f776691edd" \
+      org.opencontainers.image.source="https://git.deuxfleurs.fr/Deuxfleurs/garage" \
+      org.opencontainers.image.licenses="AGPL-3.0" \
+      io.launchpad.release-status="isolated-candidate-not-approved"
+COPY --chmod=0555 garage /garage
+COPY Cargo.lock xml-hardening.patch h2-hardening.patch sqlite-defensive.patch LICENSE /usr/share/garage-source/
+COPY --chown=65532:65532 data/ /trial/
+USER 65532:65532
+ENTRYPOINT ["/garage"]
+CMD ["server"]

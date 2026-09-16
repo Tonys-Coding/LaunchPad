@@ -1,0 +1,42 @@
+# Standalone test file, NEVER overlay on production/local Compose.
+services:
+  garage:
+    image: ${GARAGE_TRIAL_IMAGE:-dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690}
+    # Explicitly override both image conventions (upstream CMD vs candidate ENTRYPOINT).
+    entrypoint: []
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    environment:
+      GARAGE_RPC_SECRET: ${TRIAL_RPC_SECRET:?Run scripts/test-garage.sh}
+      GARAGE_DEFAULT_ACCESS_KEY: ${TRIAL_ACCESS_KEY:?Run scripts/test-garage.sh}
+      GARAGE_DEFAULT_SECRET_KEY: ${TRIAL_SECRET_KEY:?Run scripts/test-garage.sh}
+      GARAGE_DEFAULT_BUCKET: launchpad-garage-trial
+      RUST_LOG: warn
+    volumes:
+      - ./docker/garage-trial.toml:/etc/garage.toml:ro
+      - trial_data:/trial
+  verify:
+    image: launchpad-production-backend:latest
+    entrypoint: ["python", "/trial-test/garage_trial.py"]
+    environment:
+      MONGO_URL: mongodb://unused:27017
+      DB_NAME: garage_trial_unused
+      S3_ENDPOINT_URL: http://garage:3900
+      S3_ACCESS_KEY: ${TRIAL_ACCESS_KEY:?Run scripts/test-garage.sh}
+      S3_SECRET_KEY: ${TRIAL_SECRET_KEY:?Run scripts/test-garage.sh}
+      S3_BUCKET: launchpad-garage-trial
+      S3_REGION: garage
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      GEMINI_API_KEY: ""
+      AWS_EC2_METADATA_DISABLED: "true"
+      PYTHONPATH: /app
+    volumes:
+      - ./scripts/garage_trial.py:/trial-test/garage_trial.py:ro
+networks:
+  default:
+    internal: true
+volumes:
+  trial_data:

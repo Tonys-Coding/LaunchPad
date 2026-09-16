@@ -4,7 +4,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar as CalIcon, X } from "lucide-react";
 
-export function DatePicker({ value, onChange, disabled, placeholder = "Pick a date", testid, clearable }) {
+export function DatePicker({ value, onChange, disabled, placeholder = "Pick a date", testid, clearable, id }) {
   const [open, setOpen] = useState(false);
   const selected = value ? parseISO(value) : undefined;
 
@@ -13,6 +13,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Pick a da
       <PopoverTrigger asChild>
         <button
           type="button"
+          id={id}
           disabled={disabled}
           data-testid={testid}
           className="w-full flex items-center gap-2 bg-surface-low border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-left focus:border-brand focus:ring-2 focus:ring-brand/30 outline-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"

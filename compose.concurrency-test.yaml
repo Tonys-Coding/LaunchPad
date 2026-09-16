@@ -1,0 +1,48 @@
+# Standalone disposable verification; never overlay on an application stack.
+services:
+  mongo:
+    image: launchpad-mongo-production:latest
+    command: [mongod, --bind_ip_all, --replSet, concurrency]
+    volumes:
+      - test_data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "try { if (rs.status().myState === 1) quit(0); } catch (e) { rs.initiate({_id:'concurrency',members:[{_id:0,host:'mongo:27017'}]}); } quit(1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  verify:
+    image: launchpad-production-backend:latest
+    entrypoint: [python, /verification/test_atomic_applications.py]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      standalone:
+        condition: service_healthy
+    environment:
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=concurrency
+      DB_NAME: launchpad_concurrency_test
+      PYTHONPATH: /verification/backend
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      GEMINI_API_KEY: ""
+    volumes:
+      - ./backend/server.py:/verification/backend/server.py:ro
+      - ./backend/atomic_writes.py:/verification/backend/atomic_writes.py:ro
+      - ./backend/flyer_extract.py:/verification/backend/flyer_extract.py:ro
+      - ./scripts/test_atomic_applications.py:/verification/test_atomic_applications.py:ro
+  standalone:
+    image: launchpad-mongo-production:latest
+    command: [mongod, --bind_ip_all]
+    volumes:
+      - standalone_data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+networks:
+  default:
+    internal: true
+volumes:
+  test_data:
+  standalone_data:

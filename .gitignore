@@ -18,6 +18,9 @@ node_modules/
 
 # Testing
 /coverage
+.pytest_cache/
+/test_reports/
+/test_result.md
 
 # Next.js
 /.next/
@@ -63,6 +66,7 @@ chainlit.md
 
 # Data and databases
 agenthub/agents/youtube/db
+/backups/
 
 # Archive files and large assets
 **/*.zip
@@ -72,9 +76,19 @@ agenthub/agents/youtube/db
 *.pack
 *.deb
 *.dylib
+!frontend/public/launchpad-extension.zip
 
 # Build caches
 .cache/
+
+# Repository-local and generated artifacts
+.gitconfig
+/yarn.lock
+docs/*.sbom.json
+docs/*.sarif.json
+docs/*-osv*.json
+docs/*-build-dependencies.txt
+docs/garage-release-build-packages.txt
 
 memory/test_credentials.md
 
@@ -84,7 +98,16 @@ frontend/node_modules/.cache/default-development/5.pack
 .env
 .env.*
 *.env
+!.env.example
+!.env.production.example
+!backend/.env.example
+!frontend/.env.example
 credentials.json
 *.key
 .credentials
 frontend/node_modules/.cache/default-development/6.pack
+frontend/node_modules/.cache/default-development/14.pack
+frontend/node_modules/.cache/default-development/10.pack
+frontend/node_modules/.cache/default-development/17.pack
+frontend/node_modules/.cache/default-development/12.pack
+frontend/node_modules/.cache/default-development/0.pack

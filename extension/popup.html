@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="popup.css" />
+  <title>Launchpad</title>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="hdr">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="Launchpad" class="brand-mark" />
+        <div>
+          <div class="brand-name">Launchpad</div>
+          <div class="brand-sub" id="user-line">[ Career workspace ]</div>
+        </div>
+      </div>
+      <div class="hdr-actions">
+        <button id="open-settings" class="icon-btn" type="button" title="Open settings" aria-label="Open Launchpad settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.01V3h4v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        </button>
+        <button id="open-dashboard" class="icon-btn" type="button" title="Open dashboard" aria-label="Open Launchpad dashboard">↗</button>
+      </div>
+    </header>
+
+    <!-- Loading -->
+    <div id="loading" class="center muted">Connecting…</div>
+
+    <!-- Signed out -->
+    <div id="auth-gate" class="hidden center">
+      <div class="auth-copy">
+        <strong>Connect your Launchpad account</strong>
+        <p class="muted">Use your email and password, or connect a Google session from Chrome.</p>
+      </div>
+      <form id="extension-login-form" class="auth-form">
+        <div class="field">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" type="password" autocomplete="current-password" required />
+        </div>
+        <p id="auth-error" class="auth-error hidden" role="alert"></p>
+        <button id="extension-login-btn" type="submit" class="btn-primary auth-submit">Sign in</button>
+      </form>
+      <div class="auth-divider"><span>or</span></div>
+      <button id="signin-btn" class="btn-ghost">Open Launchpad sign-in</button>
+      <button id="retry-btn" class="btn-ghost">Use my Chrome browser session</button>
+    </div>
+
+    <!-- Main -->
+    <main id="main" class="hidden">
+      <div class="top-tabs" role="tablist">
+        <button id="tab-applications" class="top-tab active" role="tab">Applications</button>
+        <button id="tab-events" class="top-tab" role="tab">Events</button>
+      </div>
+
+      <div id="applications-panel">
+      <!-- Stats -->
+      <div class="stats" id="stats">
+        <div class="stat"><span class="stat-num" id="s-total">–</span><span class="stat-lbl">Total</span></div>
+        <div class="stat"><span class="stat-num" id="s-int">–</span><span class="stat-lbl">Interviews</span></div>
+        <div class="stat"><span class="stat-num" id="s-off">–</span><span class="stat-lbl">Offers</span></div>
+      </div>
+
+      <!-- Add form -->
+      <section class="card">
+        <div class="card-head">
+          <span class="card-title">Add application</span>
+          <button id="grab-page-btn" class="chip" type="button" title="Fill the role and website from the current tab without AI">⤵ Grab from page</button>
+        </div>
+        <div class="application-source-actions" aria-label="Application capture options">
+          <button id="read-page-btn" class="chip" type="button" title="Read structured job details from the current webpage">⌁ Read job page</button>
+          <button id="capture-btn" class="chip" type="button" title="Crop an image of a job posting from the visible page">▣ Capture image</button>
+        </div>
+        <div id="application-capture-result" class="capture-result hidden" role="status"></div>
+        <div id="application-ai-actions" class="ai-actions hidden">
+          <button id="improve-application-ai" class="ai-button" type="button">✦ Improve with AI</button>
+          <span id="application-ai-note">Uses Gemini only when clicked</span>
+        </div>
+
+        <div class="field">
+          <label>Company *</label>
+          <input id="f-company" type="text" placeholder="e.g. Google" />
+        </div>
+        <div class="field">
+          <label>Role / Title *</label>
+          <input id="f-title" type="text" placeholder="e.g. Software Engineer Intern" />
+        </div>
+        <div class="row">
+          <div class="field grow">
+            <label>Day applied *</label>
+            <input id="f-applied" type="date" />
+          </div>
+        </div>
+
+        <!-- Advanced -->
+        <div id="adv" class="hidden">
+          <div class="row">
+            <div class="field grow">
+              <label>Status</label>
+              <select id="f-status">
+                <option>Applied</option><option>Screening</option>
+                <option>Interviewing</option><option>Offer</option><option>Rejected</option>
+              </select>
+            </div>
+            <div class="field grow">
+              <label>Website</label>
+              <input id="f-domain" type="text" placeholder="google.com" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field grow">
+              <label>Expected start</label>
+              <input id="f-start" type="date" />
+            </div>
+            <div class="field tbd-field">
+              <label>&nbsp;</label>
+              <label class="check"><input id="f-tbd" type="checkbox" /> TBD</label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field grow">
+              <label>Pay</label>
+              <input id="f-pay" type="number" min="0" placeholder="Amount" />
+            </div>
+            <div class="field">
+              <label>Period</label>
+              <select id="f-period">
+                <option value="yearly">/yr</option>
+                <option value="monthly">/mo</option>
+                <option value="hourly">/hr</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Confidence</label>
+              <select id="f-conf">
+                <option value="">—</option><option>Low</option><option>Medium</option><option>High</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field grow">
+              <label>Follow-up</label>
+              <input id="f-follow" type="date" />
+            </div>
+            <div class="field grow">
+              <label>Interview</label>
+              <input id="f-interview" type="datetime-local" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea id="f-desc" rows="2" placeholder="Notes, link, details…"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <div class="mode-tabs">
+            <button id="mode-simple" class="mode active">Simple</button>
+            <button id="mode-advanced" class="mode">Advanced</button>
+          </div>
+          <button id="save-btn" class="btn-primary">Add</button>
+        </div>
+      </section>
+
+      <!-- Recent list -->
+      <section class="card">
+        <div class="card-head">
+          <span class="card-title">Recent applications</span>
+          <button id="view-all" class="chip">View all</button>
+        </div>
+        <div id="list" class="list"></div>
+      </section>
+      </div>
+
+      <div id="events-panel" class="hidden">
+        <section class="card">
+          <div class="card-head">
+            <span class="card-title">Quick add event</span>
+            <div class="card-head-actions"><button id="capture-event-btn" class="chip" type="button" title="Read event details from the visible page">▣ Capture flyer</button><span id="calendar-status" class="connection-pill">Local only</span></div>
+          </div>
+          <div id="event-capture-result" class="capture-result hidden" role="status"></div>
+          <div id="event-ai-actions" class="ai-actions hidden">
+            <button id="improve-event-ai" class="ai-button" type="button">✦ Improve with AI</button>
+            <span id="event-ai-note">Uses Gemini only when clicked</span>
+          </div>
+          <div class="field">
+            <label>Event name *</label>
+            <input id="e-title" type="text" placeholder="e.g. Career fair" />
+          </div>
+          <div class="field">
+            <label>Organizer</label>
+            <input id="e-organizer" type="text" placeholder="Club, department, company, or person" />
+          </div>
+          <div class="row">
+            <div class="field grow">
+              <label>Category</label>
+              <select id="e-category">
+                <option>Academic</option><option>Work</option><option>Job Search</option>
+                <option>Interview</option><option>Career Fair</option><option>Deadline</option>
+                <option>Personal</option><option selected>Other</option>
+              </select>
+            </div>
+            <div class="field grow">
+              <label>Date *</label>
+              <input id="e-date" type="date" />
+            </div>
+            <div class="field grow">
+              <label>Time</label>
+              <select id="e-time"></select>
+            </div>
+          </div>
+          <button id="event-advanced-toggle" class="text-button" type="button">More details</button>
+          <div id="event-advanced" class="hidden">
+            <label class="check standalone-check"><input id="e-all-day" type="checkbox" /> All day</label>
+            <div class="row">
+              <div class="field grow"><label>End date</label><input id="e-end-date" type="date" /></div>
+              <div class="field grow"><label>End time</label><select id="e-end-time"></select></div>
+            </div>
+            <div class="field"><label>Timezone</label><input id="e-timezone" type="text" /></div>
+            <div class="field"><label>Location</label><input id="e-location" type="text" placeholder="Room, address, or link" /></div>
+            <div class="field"><label>Description</label><textarea id="e-description" rows="2" placeholder="Notes and details"></textarea></div>
+            <div class="row">
+              <div class="field grow"><label>Reminder</label><select id="e-reminder"><option value="">None</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="1440">1 day</option></select></div>
+              <div class="field grow"><label>Icon</label><select id="e-icon"><option value="calendar-check">Calendar</option><option value="book-open">Book</option><option value="briefcase-business">Briefcase</option><option value="graduation-cap">Graduation</option><option value="video">Video</option><option value="users">People</option><option value="map-pin">Place</option><option value="clock">Clock</option><option value="target">Target</option><option value="bell">Bell</option></select></div>
+            </div>
+            <div class="field"><label>Picture</label><select id="e-picture"><option value="">Use simple icon</option><option value="fluent-emoji-flat:spiral-calendar">Calendar picture</option><option value="fluent-emoji-flat:graduation-cap">Graduation picture</option><option value="fluent-emoji-flat:laptop">Laptop picture</option><option value="fluent-emoji-flat:briefcase">Briefcase picture</option><option value="fluent-emoji-flat:alarm-clock">Alarm picture</option><option value="fluent-emoji-flat:books">Books picture</option><option value="fluent-emoji-flat:bullseye">Target picture</option><option value="fluent-emoji-flat:office-building">Office picture</option></select></div>
+            <label id="e-sync-row" class="check standalone-check hidden"><input id="e-sync" type="checkbox" /> Add to Google Calendar</label>
+          </div>
+          <div class="form-actions event-actions">
+            <span id="event-draft-status" class="draft-status hidden" aria-live="polite">Draft saved</span>
+            <button id="event-save-btn" class="btn-primary">Add event</button>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="card-title">Upcoming</span><button id="open-calendar" class="chip">Full calendar</button></div>
+          <div class="calendar-view-tabs" role="tablist" aria-label="Upcoming event view">
+            <button id="event-view-week" class="calendar-view-tab active" type="button" role="tab" aria-selected="true">Week</button>
+            <button id="event-view-list" class="calendar-view-tab" type="button" role="tab" aria-selected="false">List</button>
+          </div>
+          <div id="event-week-view">
+            <div class="week-toolbar">
+              <button id="week-prev" class="week-arrow" type="button" aria-label="Previous week">‹</button>
+              <button id="week-today" class="week-range" type="button" title="Return to this week"></button>
+              <button id="week-next" class="week-arrow" type="button" aria-label="Next week">›</button>
+            </div>
+            <div id="week-calendar" class="week-calendar" aria-live="polite"></div>
+          </div>
+          <div id="event-list-view" class="hidden">
+            <div id="event-list" class="list"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div id="capture-editor" class="capture-editor hidden" role="dialog" aria-modal="true" aria-labelledby="capture-editor-title">
+      <div class="capture-editor-head"><div><strong id="capture-editor-title">Crop the flyer</strong><p id="capture-editor-help">Drag around the flyer. Zoom in if it appears small.</p></div><button id="capture-cancel-x" class="icon-btn" type="button" aria-label="Cancel image capture">×</button></div>
+      <div class="capture-canvas-wrap"><canvas id="capture-canvas" aria-label="Screenshot crop area"></canvas></div>
+      <p id="capture-editor-status" class="capture-editor-status"></p>
+      <div class="capture-editor-actions">
+        <div class="capture-editor-tools"><button id="capture-reset" class="btn-ghost hidden" type="button">Full screenshot</button><button id="capture-zoom" class="btn-ghost" type="button">Zoom selection</button></div>
+        <div class="capture-editor-submit"><button id="capture-cancel" class="btn-ghost capture-cancel" type="button">Cancel</button><button id="capture-analyze" class="btn-primary" type="button">Analyze selection</button></div>
+      </div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

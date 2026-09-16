@@ -1,0 +1,9 @@
+[Unit]
+Description=LaunchPad production health check
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/launchpad
+Environment=LAUNCHPAD_ENV_FILE=/opt/launchpad/.env.production
+ExecStart=/opt/launchpad/scripts/production-check.sh
