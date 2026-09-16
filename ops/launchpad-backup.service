@@ -1,0 +1,9 @@
+[Unit]
+Description=LaunchPad encrypted off-server backup
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/launchpad
+Environment=LAUNCHPAD_ENV_FILE=/opt/launchpad/.env.production
+ExecStart=/opt/launchpad/scripts/backup-production.sh

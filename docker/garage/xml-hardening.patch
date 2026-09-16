@@ -1,0 +1,85 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 7573210..3e7d67b 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3832,9 +3832,9 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
+ 
+ [[package]]
+ name = "quick-xml"
+-version = "0.39.2"
++version = "0.41.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "958f21e8e7ceb5a1aa7fa87fab28e7c75976e0bfe7e23ff069e0a260f894067d"
++checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
+ dependencies = [
+  "memchr",
+  "serde",
+diff --git a/Cargo.toml b/Cargo.toml
+index 4ba3116..c053e95 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -100,7 +100,7 @@ fjall = "2.11"
+ async-compression = { version = "0.4", features = ["tokio", "zstd"] }
+ zstd = { version = "0.13", default-features = false }
+ 
+-quick-xml = { version = "0.39", features = ["serialize"] }
++quick-xml = { version = "=0.41.0", features = ["serialize"] }
+ rmp-serde = "1.3"
+ serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+ serde_bytes = "0.11"
+diff --git a/src/api/common/xml/mod.rs b/src/api/common/xml/mod.rs
+index be07949..b7bac98 100644
+--- a/src/api/common/xml/mod.rs
++++ b/src/api/common/xml/mod.rs
+@@ -46,3 +46,51 @@ impl From<&str> for Value {
+ #[derive(Debug, ToSchema, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+ #[schema(as = xml::IntValue)]
+ pub struct IntValue(#[serde(rename = "$value")] pub i64);
++
++#[cfg(test)]
++mod security_regressions {
++	use super::Value;
++	use std::time::{Duration, Instant};
++
++	#[test]
++	fn namespace_declarations_are_bounded() {
++		let mut xml = String::from("<Value");
++		for n in 0..257 {
++			xml.push_str(&format!(" xmlns:p{n}=\"urn:trial:{n}\""));
++		}
++		xml.push_str(">safe</Value>");
++		let error = quick_xml::de::from_str::<Value>(&xml).unwrap_err();
++		assert!(error.to_string().to_lowercase().contains("namespace"), "{}", error);
++	}
++
++	#[test]
++	fn duplicate_attribute_checks_remain_enabled() {
++		let mut reader = quick_xml::Reader::from_str(
++			"<Value repeated=\"one\" repeated=\"two\">safe</Value>"
++		);
++		let quick_xml::events::Event::Start(tag) = reader.read_event().unwrap() else {
++			panic!("expected start tag");
++		};
++		assert!(tag.attributes().any(|attribute| attribute.is_err()));
++	}
++
++	#[test]
++	fn large_attribute_list_finishes_within_budget() {
++		let mut xml = String::from("<Value");
++		for n in 0..25_000 {
++			xml.push_str(&format!(" a{n}=\"x\""));
++		}
++		xml.push_str(">safe</Value>");
++		assert!(xml.len() < 1_000_000);
++		let start = Instant::now();
++		let mut reader = quick_xml::Reader::from_str(&xml);
++		let quick_xml::events::Event::Start(tag) = reader.read_event().unwrap() else {
++			panic!("expected start tag");
++		};
++		let attributes = tag.attributes().collect::<Result<Vec<_>, _>>().unwrap();
++		assert_eq!(attributes.len(), 25_000);
++		let value = quick_xml::de::from_str::<Value>(&xml).unwrap();
++		assert_eq!(value.0, "safe");
++		assert!(start.elapsed() < Duration::from_secs(10));
++	}
++}

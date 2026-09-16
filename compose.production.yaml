@@ -1,0 +1,96 @@
+name: launchpad-production
+
+services:
+  mongo:
+    image: launchpad-mongo-production:${LAUNCHPAD_RELEASE:?Set LAUNCHPAD_RELEASE in .env.production}
+    build:
+      context: .
+      dockerfile: docker/mongo/Dockerfile
+    command: ["mongod", "--auth", "--bind_ip_all", "--replSet", "launchpad", "--keyFile", "/data/configdb/launchpad-replica-set.key"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in .env.production}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env.production}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-launchpad}
+      MONGO_DATABASE: ${MONGO_DATABASE:-launchpad}
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:?Set MONGO_APP_USERNAME in .env.production}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.production}
+      MONGO_REPLICA_SET_NAME: launchpad
+      MONGO_REPLICA_SET_HOST: mongo:27017
+      MONGO_REPLICA_SET_KEY_FILE: /run/secrets/mongo_replica_set_key
+    secrets:
+      - mongo_replica_set_key
+    volumes:
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/launchpad.js:ro
+    healthcheck:
+      test:
+        - CMD
+        - launchpad-mongo-healthcheck
+
+  minio:
+    # Local Compose keeps MinIO for development. Production deliberately uses a
+    # separately provisioned S3-compatible bucket, so this inherited service is
+    # excluded unless an operator explicitly enables the local-storage profile.
+    profiles: ["local-storage"]
+
+  backend:
+    image: launchpad-backend-production:${LAUNCHPAD_RELEASE:?Set LAUNCHPAD_RELEASE in .env.production}
+    depends_on: !override
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=launchpad
+      MONGO_USERNAME: ${MONGO_APP_USERNAME:?Set MONGO_APP_USERNAME in .env.production}
+      MONGO_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env.production}
+      MONGO_AUTH_SOURCE: ${MONGO_DATABASE:-launchpad}
+      DB_NAME: ${MONGO_DATABASE:-launchpad}
+      PRODUCTION_MODE: "true"
+      API_DOCS_ENABLED: "false"
+      RATE_LIMITING_ENABLED: "true"
+      LOG_FORMAT: json
+      SIGNUP_MODE: google_invite_only
+      BETA_ALLOWED_EMAILS: ${BETA_ALLOWED_EMAILS:?Set BETA_ALLOWED_EMAILS in .env.production}
+      TRUSTED_HOSTS: ${LAUNCHPAD_DOMAIN:?Set LAUNCHPAD_DOMAIN in .env.production},backend,localhost
+      CORS_ORIGINS: https://${LAUNCHPAD_DOMAIN:?Set LAUNCHPAD_DOMAIN in .env.production}
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: lax
+      PUBLIC_BASE_URL: https://${LAUNCHPAD_DOMAIN:?Set LAUNCHPAD_DOMAIN in .env.production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env.production}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in .env.production}
+      GOOGLE_CALENDAR_TOKEN_KEY: ${GOOGLE_CALENDAR_TOKEN_KEY:?Set GOOGLE_CALENDAR_TOKEN_KEY in .env.production}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:?Set the managed S3-compatible endpoint in .env.production}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set the bucket-scoped S3 access key in .env.production}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Set the bucket-scoped S3 secret key in .env.production}
+      S3_BUCKET: ${S3_BUCKET:?Set the pre-provisioned S3 bucket in .env.production}
+      S3_REGION: ${S3_REGION:?Set the S3 region in .env.production}
+      S3_CREATE_BUCKET_IF_MISSING: "false"
+      ALLOW_ALL_CHROME_EXTENSIONS: "false"
+      CHROME_EXTENSION_IDS: ${CHROME_EXTENSION_IDS:-}
+      APPLICATION_LIMIT: ${APPLICATION_LIMIT:-2000}
+      EVENT_LIMIT: ${EVENT_LIMIT:-2000}
+      LIBRARY_RECORD_LIMIT: ${LIBRARY_RECORD_LIMIT:-500}
+      ATTACHMENT_TOTAL_BYTES_LIMIT: ${ATTACHMENT_TOTAL_BYTES_LIMIT:-104857600}
+      BULK_IMPORT_LIMIT: ${BULK_IMPORT_LIMIT:-500}
+      LOCAL_OCR_HOURLY_LIMIT: ${LOCAL_OCR_HOURLY_LIMIT:-20}
+      AI_FLYER_DAILY_LIMIT: ${AI_FLYER_DAILY_LIMIT:-5}
+      RECENT_AUTH_SECONDS: ${RECENT_AUTH_SECONDS:-900}
+      SEED_DEMO_DATA: "false"
+
+  web:
+    image: launchpad-web-production:${LAUNCHPAD_RELEASE:?Set LAUNCHPAD_RELEASE in .env.production}
+    environment:
+      LAUNCHPAD_DOMAIN: ${LAUNCHPAD_DOMAIN:?Set LAUNCHPAD_DOMAIN in .env.production}
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  mongo_replica_set_key:
+    file: ${MONGO_REPLICA_SET_KEY_FILE:?Set MONGO_REPLICA_SET_KEY_FILE in .env.production}

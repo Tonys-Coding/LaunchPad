@@ -1,0 +1,70 @@
+diff --git a/src/db/sqlite_adapter.rs b/src/db/sqlite_adapter.rs
+index c5297cb..f956e89 100644
+--- a/src/db/sqlite_adapter.rs
++++ b/src/db/sqlite_adapter.rs
+@@ -75,15 +75,7 @@ pub struct SqliteDb {
+ 
+ impl SqliteDb {
+ 	pub fn open(manager: SqliteConnectionManager, sync_mode: bool) -> DbResult<Db> {
+-		let manager = manager.with_init(move |db| {
+-			db.pragma_update(None, "journal_mode", "WAL")?;
+-			if sync_mode {
+-				db.pragma_update(None, "synchronous", "NORMAL")?;
+-			} else {
+-				db.pragma_update(None, "synchronous", "OFF")?;
+-			}
+-			Ok(())
+-		});
++		let manager = manager.with_init(move |db| configure_connection(db, sync_mode));
+ 		let s = Self {
+ 			db: Pool::builder().build(manager)?,
+ 			trees: RwLock::new(vec![]),
+@@ -93,6 +85,48 @@ impl SqliteDb {
+ 	}
+ }
+ 
++fn configure_connection(db: &mut rusqlite::Connection, sync_mode: bool) -> rusqlite::Result<()> {
++	// Apply to every pooled connection, including replacements after reconnect.
++	db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
++	db.pragma_update(None, "journal_mode", "WAL")?;
++	if sync_mode {
++		db.pragma_update(None, "synchronous", "NORMAL")?;
++	} else {
++		db.pragma_update(None, "synchronous", "OFF")?;
++	}
++	Ok(())
++}
++
++#[cfg(test)]
++mod defensive_tests {
++	use super::*;
++
++	#[test]
++	fn every_initialized_connection_is_defensive() {
++		for sync_mode in [true, false] {
++			let mut db = rusqlite::Connection::open_in_memory().unwrap();
++			configure_connection(&mut db, sync_mode).unwrap();
++			assert!(db.db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE).unwrap());
++			db.execute("CREATE TABLE example (k BLOB PRIMARY KEY, v BLOB)", []).unwrap();
++			let key = b"'); DROP TABLE example; --";
++			db.execute("INSERT INTO example VALUES (?1, ?2)", params![key.as_slice(), b"value".as_slice()]).unwrap();
++			let value: Vec<u8> = db.query_row("SELECT v FROM example WHERE k = ?1", params![key.as_slice()], |r| r.get(0)).unwrap();
++			assert_eq!(value, b"value");
++		}
++	}
++
++	#[test]
++	fn defensive_mode_blocks_direct_schema_writes() {
++		let mut db = rusqlite::Connection::open_in_memory().unwrap();
++		configure_connection(&mut db, true).unwrap();
++		db.execute("CREATE TABLE example (k BLOB PRIMARY KEY, v BLOB)", []).unwrap();
++		db.pragma_update(None, "writable_schema", true).unwrap();
++		assert!(db.execute("DELETE FROM sqlite_schema WHERE name = 'example'", []).is_err());
++		let count: i64 = db.query_row("SELECT count(*) FROM sqlite_schema WHERE name = 'example'", [], |r| r.get(0)).unwrap();
++		assert_eq!(count, 1);
++	}
++}
++
+ impl SqliteDb {
+ 	fn get_tree(&self, i: usize) -> DbResult<Arc<str>> {
+ 		self.trees
