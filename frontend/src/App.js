@@ -1,14 +1,17 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
-import AuthCallback from "@/pages/AuthCallback";
 import Dashboard from "@/pages/Dashboard";
 import Applications from "@/pages/Applications";
 import Board from "@/pages/Board";
 import Settings from "@/pages/Settings";
+import CalendarPage from "@/pages/Calendar";
+import Library from "@/pages/Library";
+import { Privacy, Terms } from "@/pages/Legal";
 
 function FullScreenLoader() {
   return (
@@ -18,30 +21,31 @@ function FullScreenLoader() {
   );
 }
 
-function ProtectedRoute({ children }) {
+export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading || user === null) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
-function PublicOnly({ children }) {
+export function PublicOnly({ children }) {
   const { user, loading } = useAuth();
   if (loading || user === null) return <FullScreenLoader />;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
-function AppRouter() {
-  const location = useLocation();
-  if (location.hash?.includes("session_id=")) return <AuthCallback />;
-
+export function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/applications" element={<ProtectedRoute><Applications /></ProtectedRoute>} />
       <Route path="/board" element={<ProtectedRoute><Board /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+      <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -49,15 +53,22 @@ function AppRouter() {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster theme={theme} position="top-right" richColors />;
+}
+
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRouter />
-          <Toaster theme="dark" position="top-right" richColors />
-        </AuthProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <AppRouter />
+            <ThemedToaster />
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </div>
   );
 }

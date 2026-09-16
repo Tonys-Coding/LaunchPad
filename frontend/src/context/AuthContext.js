@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
+import { useTheme } from "@/context/ThemeContext";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const { setPreference } = useTheme();
   const [user, setUser] = useState(null); // null=checking, false=unauth, object=auth
   const [loading, setLoading] = useState(true);
 
@@ -11,20 +13,15 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get("/auth/me");
       setUser(data);
+      if (data.preferences?.theme) setPreference(data.preferences.theme);
     } catch {
       setUser(false);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setPreference]);
 
   useEffect(() => {
-    // CRITICAL: If returning from OAuth callback, skip the /me check.
-    // AuthCallback will exchange the session_id and establish the session first.
-    if (window.location.hash?.includes("session_id=")) {
-      setLoading(false);
-      return;
-    }
     checkAuth();
   }, [checkAuth]);
 

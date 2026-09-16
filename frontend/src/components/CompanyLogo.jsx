@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 
 const COLORS = [
-  "#b4c5ff", "#7bd0ff", "#2563eb", "#ffb596", "#ffb4ab",
-  "#00a6e0", "#8d90a0", "#d4e4fa",
+  "#e3ba51", "#d9a441", "#a9791f", "#c9873f", "#c05a3a",
+  "#8faa4e", "#b8a67e", "#c86f4a",
 ];
 
 function colorFor(name) {
