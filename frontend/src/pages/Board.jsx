@@ -77,7 +77,7 @@ export default function Board() {
 
       {loading ? <div className="flex min-h-72 items-center justify-center text-on-surface-variant" role="status"><Loader2 size={25} className="mr-2 animate-spin" />Loading board...</div>
       : loadError ? <div className="flex min-h-72 flex-col items-center justify-center text-center" role="alert" data-testid="board-load-error"><AlertTriangle size={27} className="mb-3 text-danger" /><p className="text-sm text-danger">{loadError}</p><button type="button" onClick={load} className="lp-chamfer-button mt-4 flex items-center gap-2 border border-outline-variant px-4 py-2 text-sm font-semibold hover:bg-surface-high"><RefreshCw size={14} />Try again</button></div>
-      : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" data-testid="kanban-board">
+      : <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="kanban-board">
         {STATUSES.map((status) => {
           const items = apps.filter((a) => a.status === status);
           const color = STATUS_COLORS[status];
@@ -88,7 +88,7 @@ export default function Board() {
               onDragOver={(e) => { e.preventDefault(); setOverCol(status); }}
               onDragLeave={() => setOverCol((c) => (c === status ? null : c))}
               onDrop={() => moveTo(status)}
-              className={`lp-panel lp-chamfer-tr flex flex-col border transition-colors ${
+              className={`lp-panel lp-chamfer-tr flex self-start flex-col border transition-colors ${
                 overCol === status ? "border-brand bg-surface-mid" : "border-surface-highest bg-surface-low"
               }`}
             >
@@ -100,9 +100,9 @@ export default function Board() {
                 <span className="lp-chamfer-chip bg-surface-highest px-2 py-0.5 text-xs text-on-surface-variant">{items.length}</span>
               </div>
 
-              <div className="p-3 space-y-3 min-h-[140px] flex-1">
+              <div className={`p-3 ${items.length === 0 ? "min-h-24" : "space-y-3"}`}>
                 {items.length === 0 && (
-                  <p className="text-xs text-on-surface-variant text-center py-8">Drop here</p>
+                  <p className="py-7 text-center text-xs text-on-surface-variant">Drop here</p>
                 )}
                 {items.map((app) => {
                   const fu = followUpState(app);
