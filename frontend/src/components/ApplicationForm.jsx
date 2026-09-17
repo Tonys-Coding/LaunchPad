@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthPicker } from "@/components/MonthPicker";
+import { localCalendarDate } from "@/lib/dates";
 
 const STATUSES = ["Applied", "Screening", "Interviewing", "Offer", "Rejected"];
 const CONFIDENCE = ["Low", "Medium", "High"];
@@ -22,15 +23,15 @@ const FormSection = ({ title, children }) => (
   </div>
 );
 
-const empty = {
-  company_name: "", job_title: "", day_applied: new Date().toISOString().slice(0, 10),
+const emptyForm = () => ({
+  company_name: "", job_title: "", day_applied: localCalendarDate(),
   expected_start_date: "", start_date_tbd: false, start_date_month_only: false, company_domain: "",
   description: "", pay_amount: "", pay_period: "yearly", confidence_level: "",
   follow_up_date: "", interview_day: "", interview_time: "", status: "Applied",
-};
+});
 
 export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState("simple");
@@ -43,7 +44,7 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
       if (initial) {
         const iv = initial.interview_date || "";
         setForm({
-          ...empty, ...initial,
+          ...emptyForm(), ...initial,
           pay_amount: initial.pay_amount ?? "",
           expected_start_date: initial.expected_start_date || "",
           start_date_month_only: !!initial.start_date_month_only,
@@ -54,7 +55,7 @@ export function ApplicationForm({ open, onOpenChange, onSubmit, initial }) {
           interview_time: iv && iv.length >= 16 ? iv.slice(11, 16) : "",
         });
       } else {
-        setForm(empty);
+        setForm(emptyForm());
       }
     }
   }, [open, initial]);

@@ -179,6 +179,70 @@ html.light .lp-panel {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes lp-goal-celebration-enter {
+    0% { opacity: 0; transform: scale(0.78) translateY(18px); }
+    55% { opacity: 1; transform: scale(1.04) translateY(0); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes lp-goal-confetti-fall {
+    0% { opacity: 0; transform: translate3d(0, -12vh, 0) rotate(0deg); }
+    12% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(24px, 108vh, 0) rotate(calc(var(--lp-confetti-rotation) + 540deg)); }
+}
+
+.lp-goal-celebration {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding: 1.5rem;
+    pointer-events: none;
+    background: rgb(var(--background) / 0.38);
+    backdrop-filter: blur(2px);
+}
+
+.lp-goal-celebration-message {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    max-width: 38rem;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.4rem 1.6rem;
+    text-align: center;
+    background: linear-gradient(145deg, rgb(var(--surface-highest)), rgb(var(--surface-low)));
+    border: 1px solid rgb(var(--brand) / 0.5);
+    box-shadow: 0 24px 80px -20px rgb(0 0 0 / 0.95), 0 0 48px rgb(var(--brand) / 0.12);
+    animation: lp-goal-celebration-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lp-goal-celebration-icon {
+    display: grid;
+    width: 3.5rem;
+    height: 3.5rem;
+    flex: none;
+    place-items: center;
+    color: rgb(var(--on-brand));
+    background: rgb(var(--brand));
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.lp-goal-confetti-field { position: absolute; inset: 0; }
+.lp-goal-confetti {
+    position: absolute;
+    top: 0;
+    left: var(--lp-confetti-left);
+    width: 0.5rem;
+    height: 1.1rem;
+    opacity: 0;
+    background: var(--lp-confetti-color);
+    transform: rotate(var(--lp-confetti-rotation));
+    animation: lp-goal-confetti-fall var(--lp-confetti-duration) ease-in var(--lp-confetti-delay) both;
+}
+
 .lp-route-content .lp-panel:not(.animate-pulse),
 .lp-route-content .lp-surface-hover {
     animation: lp-component-enter 420ms ease-out backwards;
@@ -281,6 +345,8 @@ body textarea {
     }
     .lp-route-content .lp-panel:hover,
     .lp-surface-hover:hover { transform: none; }
+    .lp-goal-celebration-message { animation: none; }
+    .lp-goal-confetti { display: none; }
 }
 
 @layer base {

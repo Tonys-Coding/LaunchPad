@@ -14,6 +14,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { addDays, format } from "date-fns";
 import api from "@/lib/api";
 import { EventIcon, itemStart, itemTimeLabel } from "@/lib/calendar";
+import { useRefreshOnReturn } from "@/hooks/useRefreshOnReturn";
 
 function money(n) {
   return "$" + (n >= 1000 ? (n / 1000).toFixed(0) + "k" : n);
@@ -55,18 +56,25 @@ export default function Dashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(false);
 
-  const loadGoal = useCallback(async () => {
-    setGoalLoading(true);
-    setGoalError(false);
+  const loadGoal = useCallback(async (options = {}) => {
+    const silent = options?.silent === true;
+    if (!silent) {
+      setGoalLoading(true);
+      setGoalError(false);
+    }
     try {
       const { data: goalData } = await api.get("/application-goal");
       setGoal(goalData);
+      setGoalError(false);
     } catch {
-      setGoalError(true);
+      if (!silent) setGoalError(true);
     } finally {
-      setGoalLoading(false);
+      if (!silent) setGoalLoading(false);
     }
   }, []);
+
+  const refreshGoalSilently = useCallback(() => loadGoal({ silent: true }), [loadGoal]);
+  useRefreshOnReturn(refreshGoalSilently);
 
   const load = useCallback(async () => {
     setDashboardLoading(true);

@@ -19,7 +19,7 @@ This repository contains the independent, self-hosted version of LaunchPad. It r
 
 - **See your whole search at a glance.** Use the dashboard, application list, and Kanban board to understand what is moving and what needs attention.
 - **Stay ahead of important dates.** Keep events, interviews, and follow-ups in one calendar, with optional export to a dedicated Google Calendar.
-- **Build momentum.** Set a daily or weekly application goal and watch your progress update as applications are added.
+- **Build momentum.** Set a daily or weekly application goal, get a fresh motivational prompt each day, and celebrate when the target is reached.
 - **Remember your strongest work.** Save skills, experiences, projects, accomplishments, and interview notes in the Career Library.
 - **Keep the details nearby.** Add notes, compensation information, reminders, resumes, and job descriptions to each application.
 - **Spend less time typing.** Import and export CSV files, capture event flyers, read structured job pages, and optionally improve extracted details with Gemini.
@@ -92,7 +92,7 @@ The unpacked extension lives in `extension/` and currently points to the local a
 3. Choose **Load unpacked** and select the `extension/` directory.
 4. Sign in from the popup, or reuse the website session from the same Chrome profile.
 
-Version 1.8.0 includes persistent application and event drafts, shared Simple/Advanced application fields, no-AI page grabbing, structured `JobPosting` reading, cropped screenshot capture, optional AI improvement, a weekly event view, and a direct Settings shortcut.
+Version 1.8.2 includes persistent application and event drafts, shared Simple/Advanced application fields, traditional and Gemini-assisted job-page capture, event flyer screenshot capture, a weekly event view, and a direct Settings shortcut.
 
 The ready-to-download local archive is available at `frontend/public/launchpad-extension.zip`.
 

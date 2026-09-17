@@ -980,7 +980,7 @@ async function captureEventFromPage() {
 function resetForm() {
   $("f-company").value = "";
   $("f-title").value = "";
-  $("f-applied").value = new Date().toISOString().slice(0, 10);
+  $("f-applied").value = localDate();
   $("f-status").value = "Applied";
   $("f-domain").value = "";
   $("f-start").value = "";

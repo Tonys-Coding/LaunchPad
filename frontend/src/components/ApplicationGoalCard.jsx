@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CheckCircle2, Loader2, Pencil, Plus, RefreshCw, Target, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, Pencil, Plus, Quote, RefreshCw, Sparkles, Target, Trash2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -11,6 +11,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { dailyMotivationalQuote } from "@/lib/motivationalQuotes";
+
+const GOAL_CONFETTI = Array.from({ length: 26 }, (_, index) => ({
+  left: `${4 + ((index * 37) % 92)}%`,
+  delay: `${(index * 47) % 420}ms`,
+  duration: `${1900 + ((index * 83) % 900)}ms`,
+  color: ["#67e8f9", "#a78bfa", "#facc15", "#4ade80", "#fb7185", "#f5f5f5"][index % 6],
+  rotation: `${(index * 53) % 180}deg`,
+}));
 
 export function ApplicationGoalCard({ goal, loading, error, onRetry, onSave, onRemove, onAddApplication }) {
   const { user } = useAuth();
@@ -22,8 +31,40 @@ export function ApplicationGoalCard({ goal, loading, error, onRetry, onSave, onR
   const [removing, setRemoving] = useState(false);
   const [formError, setFormError] = useState("");
   const [removeError, setRemoveError] = useState("");
+  const [celebrating, setCelebrating] = useState(false);
 
   const configured = !!goal?.configured;
+  const dailyQuote = configured ? dailyMotivationalQuote(goal.timezone) : null;
+
+  useEffect(() => {
+    if (!configured || !goal?.period_start) {
+      setCelebrating(false);
+      return undefined;
+    }
+
+    const storageKey = [
+      "launchpad-goal-celebrated",
+      user?.user_id || "current-user",
+      goal.cadence,
+      goal.period_start,
+      goal.target,
+    ].join(":");
+
+    if (!goal.complete) {
+      try { window.localStorage.removeItem(storageKey); } catch { /* Storage may be unavailable. */ }
+      setCelebrating(false);
+      return undefined;
+    }
+
+    let alreadyCelebrated = false;
+    try { alreadyCelebrated = window.localStorage.getItem(storageKey) === "1"; } catch { /* Continue without persistence. */ }
+    if (alreadyCelebrated) return undefined;
+
+    try { window.localStorage.setItem(storageKey, "1"); } catch { /* The animation can still run. */ }
+    setCelebrating(true);
+    const timer = window.setTimeout(() => setCelebrating(false), 3600);
+    return () => window.clearTimeout(timer);
+  }, [configured, goal?.cadence, goal?.complete, goal?.period_start, goal?.target, user?.user_id]);
 
   const openEditor = () => {
     setCadence(configured ? goal.cadence : "weekly");
@@ -94,6 +135,32 @@ export function ApplicationGoalCard({ goal, loading, error, onRetry, onSave, onR
 
   return (
     <>
+      {celebrating && (
+        <div className="lp-goal-celebration" role="status" aria-live="assertive" data-testid="application-goal-celebration">
+          <div className="lp-goal-celebration-message lp-chamfer-dual">
+            <span className="lp-goal-celebration-icon"><CheckCircle2 size={34} /></span>
+            <div>
+              <p className="flex items-center justify-center gap-2 text-xs font-label uppercase tracking-[0.16em] text-on-surface-variant"><Sparkles size={14} /> Goal complete</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-on-surface">You reached your {goal.cadence} application goal!</p>
+            </div>
+          </div>
+          <div className="lp-goal-confetti-field" aria-hidden="true">
+            {GOAL_CONFETTI.map((piece, index) => (
+              <span
+                key={index}
+                className="lp-goal-confetti"
+                style={{
+                  "--lp-confetti-left": piece.left,
+                  "--lp-confetti-delay": piece.delay,
+                  "--lp-confetti-duration": piece.duration,
+                  "--lp-confetti-color": piece.color,
+                  "--lp-confetti-rotation": piece.rotation,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       {!configured ? (
         <section className="lp-panel lp-chamfer-dual lp-crosshair mb-6 flex min-h-32 flex-col justify-between gap-5 p-5 sm:flex-row sm:items-center" data-testid="application-goal-empty">
           <div className="flex items-center gap-4">
@@ -131,6 +198,10 @@ export function ApplicationGoalCard({ goal, loading, error, onRetry, onSave, onR
                     ? "Resets tomorrow"
                     : `${goal.days_remaining === 0 ? "Resets tomorrow" : `${goal.days_remaining} day${goal.days_remaining === 1 ? "" : "s"} left`} · ${format(parseISO(goal.period_start), "MMM d")}–${format(parseISO(goal.period_end), "MMM d")}`}
                 </span>
+              </div>
+              <div className="mt-4 flex items-start gap-2 border-t border-outline-variant pt-3 text-sm text-on-surface-variant" data-testid="application-goal-quote">
+                <Quote size={15} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+                <p>“{dailyQuote.text}”</p>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
