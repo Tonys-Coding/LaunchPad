@@ -881,6 +881,31 @@ UNTRUSTED JOB DESCRIPTION:
         await db.resume_versions.delete_one({"user_id": user["user_id"], "version_id": version_id})
         return {"ok": True}
 
+    @router.post("/resume-versions/{version_id}/duplicate")
+    async def duplicate_version(version_id: str, user: dict = Depends(get_current_user)):
+        require_enabled()
+        original = await owned_version(user, version_id)
+        now = now_utc().isoformat()
+        duplicate = copy.deepcopy(original)
+        for key in ("_id", "finalized_at"):
+            duplicate.pop(key, None)
+        duplicate.update({
+            "version_id": f"rver_{uuid.uuid4().hex[:12]}",
+            "label": f"Copy of {original.get('label') or 'tailored resume'}"[:120],
+            "status": "draft",
+            "created_at": now,
+            "updated_at": now,
+        })
+
+        async def insert_duplicate(session):
+            count = await db.resume_versions.count_documents({"user_id": user["user_id"]}, session=session)
+            if count >= version_limit:
+                raise HTTPException(status_code=409, detail=f"Your free account can store up to {version_limit} tailored resume versions.")
+            await db.resume_versions.insert_one(dict(duplicate), session=session)
+
+        await account_transaction(db, user["user_id"], insert_duplicate)
+        return _public(duplicate)
+
     @router.post("/resume-versions/{version_id}/finalize")
     async def finalize_version(version_id: str, user: dict = Depends(get_current_user)):
         require_enabled()
