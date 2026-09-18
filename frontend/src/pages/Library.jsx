@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Archive, Award, BookOpenCheck, BriefcaseBusiness, Check, ChevronDown, ExternalLink,
   FileBadge2, FileText, FolderKanban, GraduationCap, LibraryBig, Loader2, Pencil, Plus, Search,
-  Settings2, Sparkles, Trash2, Trophy, Users,
+  Settings2, Sparkles, Trash2, Trophy, Users, UserRound, UploadCloud, Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
@@ -277,16 +277,55 @@ function ShowcaseForm({ open, onOpenChange, library, onSaved }) {
   );
 }
 
+function BaseResumeImport({ open, onOpenChange, aiAvailable, onSaved }) {
+  const [file, setFile] = useState(null);
+  const [improve, setImprove] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (open) { setFile(null); setImprove(false); } }, [open]);
+  const submit = async (event) => {
+    event.preventDefault(); if (!file) return; setSaving(true);
+    try {
+      const body = new FormData();
+      body.append("file", file); body.append("name", file.name.replace(/\.[^.]+$/, ""));
+      body.append("template", "standard"); body.append("improve_with_ai", String(improve));
+      body.append("prefill_profile", "true");
+      const { data } = await api.post("/resumes/import", body, { headers: { "Content-Type": "multipart/form-data" } });
+      const added = data.profile_prefill;
+      toast.success(`Career Profile updated${added ? ` · ${added.skills} skills and ${added.records} records added` : ""}`);
+      onOpenChange(false); await onSaved();
+    } catch (failure) { toast.error(formatApiErrorDetail(failure.response?.data?.detail)); }
+    finally { setSaving(false); }
+  };
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="border-outline-variant bg-surface-mid text-on-surface sm:max-w-lg"><DialogHeader><DialogTitle className="font-heading text-xl">Build your profile from a resume</DialogTitle></DialogHeader><form onSubmit={submit} className="space-y-4"><p className="text-sm leading-6 text-on-surface-variant">Upload a text-based PDF, DOCX, or TXT file. LaunchPad creates an editable master resume and adds information only where your Career Profile is currently empty.</p><label><span className={labelClass}>Base resume</span><input required type="file" accept=".pdf,.docx,.txt" className={fieldClass} onChange={(e) => setFile(e.target.files?.[0] || null)} /></label><label className={`flex items-start gap-2 border border-outline-variant bg-surface-low p-3 text-sm ${aiAvailable ? "" : "opacity-60"}`}><input type="checkbox" className="mt-1" disabled={!aiAvailable} checked={improve} onChange={(e) => setImprove(e.target.checked)} /><span><strong>Improve section detection with AI</strong><span className="mt-1 block text-on-surface-variant">Optional. Only extracted text is sent to Gemini.</span></span></label><div className="flex justify-end gap-2"><button type="button" onClick={() => onOpenChange(false)} className="lp-chamfer-button border border-outline-variant px-4 py-2.5 text-sm">Cancel</button><button disabled={!file || saving} className="lp-chamfer-button flex items-center gap-2 bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-40">{saving ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />}Import and prefill</button></div></form></DialogContent></Dialog>;
+}
+
+function ProfileEditor({ profile, section = "personal", onSaved }) {
+  const [form, setForm] = useState(profile);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setForm({ ...profile, education: profile.education || [] }); }, [profile]);
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const save = async (event) => { event.preventDefault(); setSaving(true); try { await api.put("/resume-profile", form); toast.success("Career Profile saved"); await onSaved(); } catch (failure) { toast.error(formatApiErrorDetail(failure.response?.data?.detail)); } finally { setSaving(false); } };
+  const education = form.education || [];
+  const updateEducation = (index, key, value) => update("education", education.map((item, slot) => slot === index ? { ...item, [key]: value } : item));
+  return <form onSubmit={save} className="lp-panel lp-chamfer-dual lp-crosshair p-4 sm:p-6">
+    {section === "personal" ? <><div className="mb-5 flex items-center gap-3 border-b border-outline-variant pb-4"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-brand"><UserRound size={18} /></span><div><h2 className="font-heading text-lg font-bold">Personal Information</h2><p className="text-xs text-on-surface-variant">Contact information used on resumes can differ from your login.</p></div></div><div className="grid gap-4 sm:grid-cols-2">{[["full_name", "Full name"], ["preferred_email", "Resume email"], ["phone", "Phone"], ["city", "City"], ["region", "State / region"], ["country", "Country"], ["linkedin", "LinkedIn"], ["github", "GitHub"], ["portfolio", "Portfolio"]].map(([key, label]) => <label key={key} className={key === "portfolio" ? "sm:col-span-2" : ""}><span className={labelClass}>{label}</span><input required={key === "full_name"} type={key === "preferred_email" ? "email" : key === "linkedin" || key === "github" || key === "portfolio" ? "url" : "text"} className={fieldClass} value={form[key] || ""} onChange={(e) => update(key, e.target.value)} /></label>)}</div></> : <><div className="mb-5 flex items-center justify-between border-b border-outline-variant pb-4"><div className="flex items-center gap-3"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-brand"><GraduationCap size={18} /></span><div><h2 className="font-heading text-lg font-bold">Education</h2><p className="text-xs text-on-surface-variant">Schools and programs available to every resume.</p></div></div><button type="button" onClick={() => update("education", [...education, { education_id: `edu_${Date.now()}`, school: "", degree: "", field: "", location: "", start_date: "", end_date: "", details: [] }])} className="lp-chamfer-button flex items-center gap-1.5 border border-outline-variant px-3 py-2 text-sm"><Plus size={14} />Add school</button></div><div className="space-y-4">{education.map((item, index) => <div key={item.education_id || index} className="grid gap-3 border border-outline-variant bg-surface-low p-4 sm:grid-cols-2"><label><span className={labelClass}>School</span><input required className={fieldClass} value={item.school || ""} onChange={(e) => updateEducation(index, "school", e.target.value)} /></label><label><span className={labelClass}>Degree</span><input className={fieldClass} value={item.degree || ""} onChange={(e) => updateEducation(index, "degree", e.target.value)} /></label><label><span className={labelClass}>Field</span><input className={fieldClass} value={item.field || ""} onChange={(e) => updateEducation(index, "field", e.target.value)} /></label><label><span className={labelClass}>Location</span><input className={fieldClass} value={item.location || ""} onChange={(e) => updateEducation(index, "location", e.target.value)} /></label><label><span className={labelClass}>Started</span><input type="month" className={fieldClass} value={(item.start_date || "").slice(0, 7)} onChange={(e) => updateEducation(index, "start_date", e.target.value)} /></label><label><span className={labelClass}>Graduated / expected</span><input type="month" className={fieldClass} value={(item.end_date || "").slice(0, 7)} onChange={(e) => updateEducation(index, "end_date", e.target.value)} /></label><button type="button" onClick={() => update("education", education.filter((_, slot) => slot !== index))} className="justify-self-start text-xs font-semibold text-danger">Remove</button></div>)}{!education.length && <EmptyState icon={GraduationCap} title="Add your education" text="Education added here can be reused across every master and tailored resume." />}</div></>}
+    <div className="mt-5 flex justify-end border-t border-outline-variant pt-4"><button disabled={saving} className="lp-chamfer-button flex items-center gap-2 bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand">{saving && <Loader2 size={15} className="animate-spin" />}Save profile</button></div>
+  </form>;
+}
+
 export default function Library() {
   const navigate = useNavigate();
   const [library, setLibrary] = useState(emptyLibrary);
+  const [profile, setProfile] = useState({ full_name: "", preferred_email: "", education: [] });
+  const [resumeData, setResumeData] = useState({ resumes: [], ai_usage: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("skills");
+  const [tab, setTab] = useState("overview");
   const [query, setQuery] = useState("");
   const [skillOpen, setSkillOpen] = useState(false);
   const [experienceOpen, setExperienceOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingSkill, setEditingSkill] = useState(null);
   const [editingExperience, setEditingExperience] = useState(null);
   const [experiencePreset, setExperiencePreset] = useState("Work");
@@ -296,8 +335,8 @@ export default function Library() {
     setLoading(true);
     setError("");
     try {
-      const response = await api.get("/library");
-      setLibrary(response.data);
+      const [response, profileResponse, resumesResponse] = await Promise.all([api.get("/library"), api.get("/resume-profile"), api.get("/resumes")]);
+      setLibrary(response.data); setProfile(profileResponse.data); setResumeData(resumesResponse.data);
     } catch (failure) {
       setError(formatApiErrorDetail(failure.response?.data?.detail));
     } finally {
@@ -311,24 +350,35 @@ export default function Library() {
   const filteredSkills = useMemo(() => library.skills.filter((skill) => `${skill.name} ${skill.category} ${skill.level} ${skill.notes || ""}`.toLowerCase().includes(query.toLowerCase())), [library.skills, query]);
   const filteredExperiences = useMemo(() => library.experiences.filter((item) => {
     const matchesType = tab === "experience"
-      ? !["Project", "Accomplishment"].includes(item.type)
-      : tab === "projects" ? item.type === "Project" : item.type === "Accomplishment";
+      ? !["Project", "Accomplishment", "Education"].includes(item.type)
+      : tab === "projects" ? item.type === "Project" : tab === "accomplishments" ? item.type === "Accomplishment" : item.type === "Education";
     return matchesType && `${item.title} ${item.organization || ""} ${item.type} ${item.description || ""} ${item.outcome || ""}`.toLowerCase().includes(query.toLowerCase());
   }), [library.experiences, query, tab]);
 
   const ranked = (items) => items.filter((item) => item.showcase_rank >= 1 && item.showcase_rank <= 3).sort((a, b) => a.showcase_rank - b.showcase_rank);
   const topSkills = useMemo(() => ranked(library.skills), [library.skills]); // eslint-disable-line react-hooks/exhaustive-deps
-  const topExperiences = useMemo(() => ranked(library.experiences.filter((item) => !["Project", "Accomplishment"].includes(item.type))), [library.experiences]); // eslint-disable-line react-hooks/exhaustive-deps
+  const topExperiences = useMemo(() => ranked(library.experiences.filter((item) => !["Project", "Accomplishment", "Education"].includes(item.type))), [library.experiences]); // eslint-disable-line react-hooks/exhaustive-deps
   const topProjects = useMemo(() => ranked(library.experiences.filter((item) => item.type === "Project")), [library.experiences]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openSkill = (skill = null) => { setEditingSkill(skill); setSkillOpen(true); };
   const openExperience = (item = null, preset = "Work") => { setEditingExperience(item); setExperiencePreset(item?.type || preset); setExperienceOpen(true); };
   const subsectionItems = [
     { value: "skills", label: "Skills", count: library.skills.length, add: () => openSkill() },
-    { value: "experience", label: "Experience", count: library.experiences.filter((item) => !["Project", "Accomplishment"].includes(item.type)).length, add: () => openExperience(null, "Work") },
+    { value: "experience", label: "Experience", count: library.experiences.filter((item) => !["Project", "Accomplishment", "Education"].includes(item.type)).length, add: () => openExperience(null, "Work") },
     { value: "projects", label: "Projects", count: library.experiences.filter((item) => item.type === "Project").length, add: () => openExperience(null, "Project") },
     { value: "accomplishments", label: "Accomplishments", count: library.experiences.filter((item) => item.type === "Accomplishment").length, add: () => openExperience(null, "Accomplishment") },
   ];
+  const profileTabs = [
+    ["overview", "Overview"], ["personal", "Personal Info"], ["experience", "Experience"],
+    ["education", "Education"], ["projects", "Projects"], ["skills", "Skills"], ["accomplishments", "Accomplishments"],
+  ];
+  const completionChecks = [
+    Boolean(profile.full_name && profile.preferred_email),
+    library.experiences.some((item) => item.type === "Work"),
+    Boolean(profile.education?.length), Boolean(library.skills.length),
+    library.experiences.some((item) => item.type === "Project"),
+  ];
+  const completion = Math.round(completionChecks.filter(Boolean).length / completionChecks.length * 100);
   const remove = async () => {
     try {
       if (deleting.kind === "skill") await api.delete(`/library/skills/${deleting.item.skill_id}`);
@@ -342,40 +392,24 @@ export default function Library() {
   };
 
   return (
-    <Layout title="Career Library">
-      <section className="lp-panel lp-chamfer-tr mb-6 flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3 px-1">
-          <span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-on-surface-variant"><Archive size={18} /></span>
-          <h2 className="font-heading text-sm font-bold uppercase tracking-wider">Add to Library</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {subsectionItems.map((item) => <button key={item.value} onClick={item.add} className="lp-chamfer-button flex min-h-10 items-center justify-center gap-2 border border-outline-variant bg-surface-low px-3 py-2 text-sm font-semibold transition-colors hover:border-outline hover:bg-surface-high"><Plus size={14} />{item.label === "Accomplishments" ? "Accomplishment" : item.label}</button>)}
-        </div>
-      </section>
-
-      <section className="lp-panel lp-chamfer-dual lp-crosshair mb-6 p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-on-surface-variant"><Trophy size={19} /></span><h2 className="font-heading text-lg font-bold">My Top Strengths</h2></div>
-          <button onClick={() => setShowcaseOpen(true)} className="lp-chamfer-button flex items-center gap-2 border border-outline-variant bg-surface-low px-3 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:border-outline hover:bg-surface-high hover:text-on-surface"><Settings2 size={15} /> Customize</button>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-3">
-          <ShowcaseColumn icon={Award} label="Top skills" items={topSkills} kind="skill" onSelect={openSkill} />
-          <ShowcaseColumn icon={BriefcaseBusiness} label="Top experiences" items={topExperiences} kind="record" onSelect={openExperience} />
-          <ShowcaseColumn icon={FolderKanban} label="Top projects" items={topProjects} kind="record" onSelect={openExperience} />
-        </div>
-      </section>
-
-      <section className="lp-panel lp-chamfer-dual lp-crosshair min-h-[420px] p-4 sm:p-5">
+    <Layout title="Career Profile">
+      {error && <div className="mb-5 flex items-center justify-between gap-3 border border-danger/50 bg-danger/5 p-3 text-sm text-danger"><span>{error}</span><button onClick={load} className="lp-chamfer-button border border-danger/50 px-3 py-1.5 font-semibold">Try again</button></div>}
+      <section className="lp-panel lp-chamfer-dual lp-crosshair mb-5 p-4 sm:p-5"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-center gap-3"><span className="lp-icon-frame flex h-11 w-11 items-center justify-center border border-outline-variant bg-surface-mid text-brand"><UserRound size={20} /></span><div><h1 className="font-heading text-2xl font-bold">Career Profile</h1><p className="mt-1 text-sm text-on-surface-variant">Your reusable experience, education, skills, projects, and accomplishments.</p></div></div><button onClick={() => navigate("/resumes")} className="lp-chamfer-button flex items-center justify-center gap-2 bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand"><FileText size={15} />Open Resume Studio</button></div></section>
+      <nav className="mb-5 flex gap-1 overflow-x-auto border border-outline-variant bg-surface-low p-1" aria-label="Career Profile sections">{profileTabs.map(([value, label]) => <button key={value} onClick={() => { setTab(value); setQuery(""); }} className={`whitespace-nowrap px-3 py-2.5 text-xs font-semibold uppercase tracking-wider ${tab === value ? "bg-brand text-on-brand" : "text-on-surface-variant hover:bg-surface-high hover:text-on-surface"}`}>{label}</button>)}</nav>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="min-w-0">
+        {tab === "overview" ? <div className="space-y-5">
+          <section className="lp-panel lp-chamfer-tr flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-3 px-1"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-on-surface-variant"><Archive size={18} /></span><h2 className="font-heading text-sm font-bold uppercase tracking-wider">Add to Career Profile</h2></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{subsectionItems.map((item) => <button key={item.value} onClick={item.add} className="lp-chamfer-button flex min-h-10 items-center justify-center gap-2 border border-outline-variant bg-surface-low px-3 py-2 text-sm font-semibold hover:bg-surface-high"><Plus size={14} />{item.label === "Accomplishments" ? "Accomplishment" : item.label}</button>)}</div></section>
+          <section className="lp-panel lp-chamfer-dual lp-crosshair p-4 sm:p-5"><div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-on-surface-variant"><Trophy size={19} /></span><h2 className="font-heading text-lg font-bold">My Top Strengths</h2></div><button onClick={() => setShowcaseOpen(true)} className="lp-chamfer-button flex items-center gap-2 border border-outline-variant bg-surface-low px-3 py-2 text-sm font-semibold text-on-surface-variant"><Settings2 size={15} />Customize</button></div><div className="grid gap-3 lg:grid-cols-3"><ShowcaseColumn icon={Award} label="Top skills" items={topSkills} kind="skill" onSelect={openSkill} /><ShowcaseColumn icon={BriefcaseBusiness} label="Top experiences" items={topExperiences} kind="record" onSelect={openExperience} /><ShowcaseColumn icon={FolderKanban} label="Top projects" items={topProjects} kind="record" onSelect={openExperience} /></div></section>
+        </div> : tab === "personal" ? <ProfileEditor profile={profile} section="personal" onSaved={load} /> : tab === "education" ? <ProfileEditor profile={profile} section="education" onSaved={load} /> : <section className="lp-panel lp-chamfer-dual lp-crosshair min-h-[420px] p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 border-b border-outline-variant pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-on-surface-variant"><LibraryBig size={19} /></span>
-            <h2 className="font-heading text-lg font-bold">Library</h2>
+            <h2 className="font-heading text-lg font-bold">{profileTabs.find(([value]) => value === tab)?.[1]}</h2>
           </div>
           <label className="relative block sm:w-72"><span className="sr-only">Search the current library section</span><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" /><input aria-label="Search the current library section" className={`${fieldClass} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${tab}`} /></label>
         </div>
-        <div className="mb-5 grid grid-cols-2 gap-1 border border-outline-variant bg-surface-low p-1 sm:grid-cols-4">
-          {subsectionItems.map((item) => <div key={item.value} className="relative min-w-0"><button aria-pressed={tab === item.value} onClick={() => setTab(item.value)} className={`lp-chamfer-chip w-full truncate px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider transition-colors ${item.count > 0 ? "pr-10" : ""} ${tab === item.value ? "bg-brand text-on-brand" : "text-on-surface-variant hover:bg-surface-high hover:text-on-surface"}`}>{item.label} ({item.count})</button>{item.count > 0 && <button onClick={item.add} className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center border transition-colors ${tab === item.value ? "border-on-brand/40 text-on-brand hover:bg-on-brand/10" : "border-outline-variant text-on-surface-variant hover:border-outline hover:text-on-surface"}`} title={`Add ${item.label.toLowerCase()}`} aria-label={`Add ${item.label.toLowerCase()}`}><Plus size={13} /></button>}</div>)}
-        </div>
+        <div className="mb-5 flex justify-end">{tab === "skills" ? <button onClick={() => openSkill()} className="lp-chamfer-button flex items-center gap-2 bg-brand px-3 py-2 text-sm font-semibold text-on-brand"><Plus size={14} />Add skill</button> : <button onClick={() => openExperience(null, tab === "projects" ? "Project" : tab === "accomplishments" ? "Accomplishment" : "Work")} className="lp-chamfer-button flex items-center gap-2 bg-brand px-3 py-2 text-sm font-semibold text-on-brand"><Plus size={14} />Add {tab === "projects" ? "project" : tab === "accomplishments" ? "accomplishment" : "experience"}</button>}</div>
 
         {loading ? <div className="flex min-h-64 items-center justify-center"><Loader2 size={30} className="animate-spin text-brand" /></div>
           : error ? <div className="flex min-h-64 flex-col items-center justify-center text-center"><p className="text-sm text-danger">{error}</p><button onClick={load} className="lp-chamfer-button mt-4 border border-outline-variant px-4 py-2 text-sm font-semibold hover:bg-surface-high">Try again</button></div>
@@ -403,11 +437,18 @@ export default function Library() {
               </article>;
             })}
           </div> : <EmptyState icon={BookOpenCheck} title={query ? `No matching ${tab}` : `No ${tab} yet`} text={query ? "Try a different search." : `Add your first ${tab === "projects" ? "project" : tab === "accomplishments" ? "accomplishment" : "experience"} to the Library.`} action={!query && <button onClick={() => openExperience(null, tab === "projects" ? "Project" : tab === "accomplishments" ? "Accomplishment" : "Work")} className="lp-chamfer-button mt-4 bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand"><Plus size={15} className="mr-2 inline" />Add {tab === "projects" ? "project" : tab === "accomplishments" ? "accomplishment" : "experience"}</button>} />}
-      </section>
+      </section>}
+        </main>
+        <aside className="space-y-4 xl:sticky xl:top-24">
+          <section className="lp-panel lp-chamfer-tr p-5"><div className="flex items-center gap-4"><div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(rgb(var(--brand)) ${completion * 3.6}deg, rgb(var(--surface-high)) 0deg)` }}><div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-low font-heading text-xl font-bold">{completion}%</div></div><div><h2 className="font-heading text-lg font-bold">Profile Progress</h2><p className="mt-1 text-sm leading-5 text-on-surface-variant">More verified detail gives Resume Studio better material to work with.</p></div></div><div className="mt-5 space-y-3 border-t border-outline-variant pt-4">{[[completionChecks[0], "Personal details"], [completionChecks[1], "Work experience"], [completionChecks[2], "Education"], [completionChecks[3], "Skills"], [completionChecks[4], "Projects"]].map(([done, label]) => <button key={label} onClick={() => setTab(label === "Personal details" ? "personal" : label === "Work experience" ? "experience" : label.toLowerCase())} className="flex w-full items-center justify-between text-left text-sm"><span className={done ? "text-on-surface-variant line-through" : "text-on-surface"}>{label}</span><span className={`flex h-5 w-5 items-center justify-center border ${done ? "border-brand bg-brand text-on-brand" : "border-outline-variant"}`}>{done && <Check size={12} />}</span></button>)}</div></section>
+          <section className="lp-panel lp-chamfer-tr p-5"><div className="flex items-center gap-3"><span className="lp-icon-frame flex h-10 w-10 items-center justify-center border border-outline-variant bg-surface-mid text-brand"><UploadCloud size={18} /></span><div><h2 className="font-heading font-bold">Import Base Resume</h2><p className="text-xs text-on-surface-variant">Prefill your Career Profile</p></div></div><p className="mt-4 text-sm leading-6 text-on-surface-variant">LaunchPad reads the file locally, creates an editable master, and adds detected profile information for you to review.</p><button onClick={() => setImportOpen(true)} disabled={(resumeData.resumes?.length || 0) >= (resumeData.limits?.masters || 5)} className="lp-chamfer-button mt-4 flex w-full items-center justify-center gap-2 border border-brand px-4 py-2.5 text-sm font-semibold text-brand disabled:opacity-40"><UploadCloud size={15} />Choose resume</button>{resumeData.resumes?.length > 0 && <button onClick={() => navigate("/resumes")} className="mt-3 flex items-center gap-1 text-xs font-semibold text-brand"><Link2 size={13} />View {resumeData.resumes.length} master resume{resumeData.resumes.length === 1 ? "" : "s"}</button>}</section>
+        </aside>
+      </div>
 
       <SkillForm open={skillOpen} onOpenChange={setSkillOpen} initial={editingSkill} onSaved={load} />
       <ExperienceForm open={experienceOpen} onOpenChange={setExperienceOpen} initial={editingExperience} defaultType={experiencePreset} skills={library.skills} onSaved={load} />
       <ShowcaseForm open={showcaseOpen} onOpenChange={setShowcaseOpen} library={library} onSaved={load} />
+      <BaseResumeImport open={importOpen} onOpenChange={setImportOpen} aiAvailable={Boolean(resumeData.ai_usage?.available)} onSaved={load} />
       <AlertDialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent className="border-outline-variant bg-surface-mid text-on-surface">
           <AlertDialogHeader><AlertDialogTitle className="font-heading">Remove {deleting?.kind}?</AlertDialogTitle><AlertDialogDescription className="text-on-surface-variant">{deleting?.kind === "skill" ? "The skill will be unlinked from your experience records. Those records will remain intact." : "This record and its saved details will be permanently removed."}</AlertDialogDescription></AlertDialogHeader>

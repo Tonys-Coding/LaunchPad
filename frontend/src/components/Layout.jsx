@@ -11,7 +11,7 @@ const navItems = [
   { to: "/applications", label: "Applications", index: "02", icon: Briefcase, testid: "nav-applications" },
   { to: "/board", label: "Board", index: "03", icon: Columns3, testid: "nav-board" },
   { to: "/calendar", label: "Calendar", index: "04", icon: CalendarDays, testid: "nav-calendar" },
-  { to: "/library", label: "Career Library", index: "05", icon: LibraryBig, testid: "nav-library" },
+  { to: "/career-profile", label: "Career Profile", index: "05", icon: LibraryBig, testid: "nav-library" },
   { to: "/resumes", label: "Resume Studio", index: "06", icon: FileText, testid: "nav-resumes" },
   { to: "/settings", label: "Settings", index: "07", icon: Settings, testid: "nav-settings" },
 ];
@@ -21,7 +21,7 @@ const mobileNav = [
   { to: "/applications", label: "Apps", icon: List, testid: "mnav-applications" },
   { to: "/board", label: "Board", icon: Columns3, testid: "mnav-board" },
   { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "mnav-calendar" },
-  { to: "/library", label: "Library", icon: LibraryBig, testid: "mnav-library" },
+  { to: "/career-profile", label: "Profile", icon: LibraryBig, testid: "mnav-library" },
   { action: "more", label: "More", icon: MoreHorizontal, testid: "mnav-more" },
 ];
 

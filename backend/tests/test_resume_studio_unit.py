@@ -17,7 +17,7 @@ from resume_studio import (
 
 
 SAMPLE_TEXT = """Tony Student
-tony@example.com | 312-555-1212
+tony@example.com | 312-555-1212 | linkedin.com/in/tony-student | github.com/tony-student
 
 SUMMARY
 Computer science student building reliable web products.
@@ -38,8 +38,11 @@ LaunchPad
 
 def test_local_parser_finds_contact_sections_and_bullets():
     content, contact = parse_resume_text(SAMPLE_TEXT)
+    assert contact["full_name"] == "Tony Student"
     assert contact["preferred_email"] == "tony@example.com"
     assert contact["phone"] == "312-555-1212"
+    assert contact["linkedin"] == "https://linkedin.com/in/tony-student"
+    assert contact["github"] == "https://github.com/tony-student"
     assert [skill.name for skill in content.skills] == ["Python", "React", "MongoDB"]
     assert content.experience[0].title == "Software Engineering Intern"
     assert content.experience[0].organization == "Example Co"

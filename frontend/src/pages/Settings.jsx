@@ -294,7 +294,7 @@ export default function Settings() {
         <DialogContent className="border-outline-variant bg-surface-mid text-on-surface">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl">Permanently delete your account?</DialogTitle>
-            <DialogDescription className="text-on-surface-variant">This removes your applications, events, Career Library, settings, sessions, integrations, and attachments. Events already sent to Google Calendar remain there.</DialogDescription>
+            <DialogDescription className="text-on-surface-variant">This removes your applications, events, Career Profile, settings, sessions, integrations, and attachments. Events already sent to Google Calendar remain there.</DialogDescription>
           </DialogHeader>
           <form onSubmit={deleteAccount} className="space-y-4">
             <div className="border border-danger/30 bg-danger/10 p-3 text-sm text-danger">This cannot be undone. Download an export first if you want to keep a copy.</div>

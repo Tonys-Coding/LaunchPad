@@ -159,13 +159,14 @@ test("board shows a retry state and opens cards with Enter", async () => {
   expect(container.querySelector('[data-testid="mock-application-detail"]').textContent).toBe("Engineer");
 });
 
-test("Career Library preserves a visible retry path", async () => {
+test("Career Profile preserves a visible retry path", async () => {
   api.get.mockRejectedValueOnce({ response: { data: { detail: "Library unavailable" } } }).mockResolvedValue({ data: { skills: [], experiences: [], summary: {} } });
   await render(<Library />);
   expect(container.textContent).toContain("Library unavailable");
   await click(button("Try again"));
+  await click(button("Skills"));
   expect(container.textContent).toContain("Build your skill set");
-  expect(button("Skills (0)").getAttribute("aria-pressed")).toBe("true");
+  expect(container.textContent).toContain("Career Profile");
 });
 
 test("Resume Studio loads private setup data and opens the manual builder", async () => {
@@ -182,8 +183,9 @@ test("Resume Studio loads private setup data and opens the manual builder", asyn
   await render(<ResumeStudio />);
   expect(container.textContent).toContain("Resume Studio");
   expect(container.textContent).toContain("10 / 10");
-  expect(container.textContent).toContain("Create your first master resume");
-  await click(button("New master resume"));
+  expect(container.textContent).toContain("My Resumes");
+  await click(button("Create resume"));
+  await click(buttons().find((item) => item.textContent.includes("Start from scratch")));
   expect(document.querySelector('[role="dialog"]').textContent).toContain("Create master resume");
   expect(document.querySelector('input[placeholder="e.g. Software Engineering"]')).not.toBeNull();
 });

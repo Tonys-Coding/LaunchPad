@@ -67,3 +67,9 @@ test("authenticated users can open Resume Studio", async () => {
   await show("/resumes");
   expect(container.textContent).toContain("Resume Studio page");
 });
+
+test("authenticated users can open Career Profile", async () => {
+  useAuth.mockReturnValue({ user: { user_id: "user-1" }, loading: false });
+  await show("/career-profile");
+  expect(container.textContent).toContain("Library page");
+});
