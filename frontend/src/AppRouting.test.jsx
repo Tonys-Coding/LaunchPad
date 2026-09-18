@@ -12,6 +12,7 @@ jest.mock("@/pages/Applications", () => () => <h1>Applications page</h1>);
 jest.mock("@/pages/Board", () => () => <h1>Board page</h1>);
 jest.mock("@/pages/Calendar", () => () => <h1>Calendar page</h1>);
 jest.mock("@/pages/Library", () => () => <h1>Library page</h1>);
+jest.mock("@/pages/ResumeStudio", () => () => <h1>Resume Studio page</h1>);
 jest.mock("@/pages/Settings", () => () => <h1>Settings page</h1>);
 jest.mock("@/pages/Legal", () => ({ Privacy: () => <h1>Privacy page</h1>, Terms: () => <h1>Terms page</h1> }));
 jest.mock("sonner", () => ({ Toaster: () => null }));
@@ -59,4 +60,16 @@ test("public legal pages remain available without an account", async () => {
   useAuth.mockReturnValue({ user: false, loading: false });
   await show("/privacy");
   expect(container.textContent).toContain("Privacy page");
+});
+
+test("authenticated users can open Resume Studio", async () => {
+  useAuth.mockReturnValue({ user: { user_id: "user-1" }, loading: false });
+  await show("/resumes");
+  expect(container.textContent).toContain("Resume Studio page");
+});
+
+test("authenticated users can open Career Profile", async () => {
+  useAuth.mockReturnValue({ user: { user_id: "user-1" }, loading: false });
+  await show("/career-profile");
+  expect(container.textContent).toContain("Library page");
 });

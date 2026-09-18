@@ -113,6 +113,14 @@ async def attach_application_file(database, user_id, app_id, attachment, byte_li
             session=session,
         ).to_list(1)
         used_bytes = int(rows[0]["total"]) if rows else 0
+        resume_rows = await database.resumes.aggregate(
+            [
+                {"$match": {"user_id": user_id}},
+                {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$source_file.size", 0]}}}},
+            ],
+            session=session,
+        ).to_list(1)
+        used_bytes += int(resume_rows[0]["total"]) if resume_rows else 0
         if used_bytes + int(attachment["size"]) > byte_limit:
             raise HTTPException(
                 status_code=413,
@@ -168,9 +176,13 @@ async def finalize_account_deletion(database, user_id):
         "events",
         "library_skills",
         "library_experiences",
+        "resume_profiles",
+        "resumes",
+        "resume_versions",
         "google_calendar_connections",
         "oauth_states",
         "ai_flyer_usage",
+        "ai_resume_usage",
         "user_sessions",
         "storage_cleanup_jobs",
     )

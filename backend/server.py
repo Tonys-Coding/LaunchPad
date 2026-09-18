@@ -53,6 +53,7 @@ from atomic_writes import (
     insert_event,
     insert_library_record,
 )
+from resume_studio import build_resume_router
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import StreamingResponse
 
@@ -151,6 +152,10 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 AI_FLYER_DAILY_LIMIT = int(os.environ.get("AI_FLYER_DAILY_LIMIT", "20"))
 if not 1 <= AI_FLYER_DAILY_LIMIT <= 1000:
     raise RuntimeError("AI_FLYER_DAILY_LIMIT must be between 1 and 1000")
+RESUME_STUDIO_ENABLED = env_bool("RESUME_STUDIO_ENABLED", True)
+AI_RESUME_MONTHLY_LIMIT = int(os.environ.get("AI_RESUME_MONTHLY_LIMIT", "10"))
+if not 1 <= AI_RESUME_MONTHLY_LIMIT <= 1000:
+    raise RuntimeError("AI_RESUME_MONTHLY_LIMIT must be between 1 and 1000")
 ALLOW_ALL_CHROME_EXTENSIONS = env_bool("ALLOW_ALL_CHROME_EXTENSIONS", False)
 CHROME_EXTENSION_IDS = {
     extension_id.strip()
@@ -334,6 +339,11 @@ async def reconcile_unreferenced_uploads(grace_seconds: int = 3600) -> int:
         for attachment in application.get("attachments") or []:
             if attachment.get("storage_path"):
                 referenced.add(attachment["storage_path"])
+    cursor = db.resumes.find({}, {"source_file.storage_path": 1})
+    async for resume in cursor:
+        storage_path = (resume.get("source_file") or {}).get("storage_path")
+        if storage_path:
+            referenced.add(storage_path)
     stale = await run_in_threadpool(stale_upload_objects, referenced, grace_seconds)
     removed = 0
     for storage_path in stale:
@@ -440,7 +450,11 @@ async def attachment_bytes_used(user_id: str) -> int:
         {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$attachments.size", 0]}}}},
     ]
     rows = await db.applications.aggregate(pipeline).to_list(1)
-    return int(rows[0]["total"]) if rows else 0
+    resume_rows = await db.resumes.aggregate([
+        {"$match": {"user_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$source_file.size", 0]}}}},
+    ]).to_list(1)
+    return (int(rows[0]["total"]) if rows else 0) + (int(resume_rows[0]["total"]) if resume_rows else 0)
 
 
 def hash_session_token(token: str) -> str:
@@ -525,6 +539,9 @@ def public_user(doc: dict) -> dict:
         "auth_provider": doc.get("auth_provider", "email"),
         "auth_providers": providers,
         "can_change_password": bool(doc.get("password_hash")),
+        "features": {
+            "resume_studio": RESUME_STUDIO_ENABLED,
+        },
         "preferences": {
             "theme": theme,
             "timezone": timezone_name,
@@ -949,6 +966,7 @@ async def auth_providers():
         "google": GOOGLE_OAUTH_ENABLED,
         "email_registration": SIGNUP_MODE == "open",
         "invite_only": SIGNUP_MODE == "google_invite_only",
+        "resume_studio": RESUME_STUDIO_ENABLED,
     }
 
 
@@ -1232,6 +1250,9 @@ async def export_account_data(request: Request, user: dict = Depends(get_current
     events = await db.events.find({"user_id": user_id}).sort("created_at", -1).to_list(None)
     skills = await db.library_skills.find({"user_id": user_id}).sort("updated_at", -1).to_list(None)
     experiences = await db.library_experiences.find({"user_id": user_id}).sort("updated_at", -1).to_list(None)
+    resume_profile = await db.resume_profiles.find_one({"user_id": user_id})
+    resumes = await db.resumes.find({"user_id": user_id}).sort("updated_at", -1).to_list(None)
+    resume_versions = await db.resume_versions.find({"user_id": user_id}).sort("updated_at", -1).to_list(None)
     generated_at = now_utc()
     buffer = tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024, mode="w+b")
     try:
@@ -1239,10 +1260,12 @@ async def export_account_data(request: Request, user: dict = Depends(get_current
             zip_json(archive, "manifest.json", {
                 "product": "LaunchPad",
                 "generated_at": generated_at,
-                "format_version": 1,
+                "format_version": 2,
                 "contents": [
                     "account.json", "applications.json", "events.json",
-                    "career-library/skills.json", "career-library/experiences.json", "attachments/",
+                    "career-library/skills.json", "career-library/experiences.json",
+                    "resume-studio/profile.json", "resume-studio/masters.json",
+                    "resume-studio/versions.json", "attachments/", "resume-sources/",
                 ],
             })
             zip_json(archive, "account.json", {
@@ -1254,6 +1277,9 @@ async def export_account_data(request: Request, user: dict = Depends(get_current
             zip_json(archive, "events.json", events)
             zip_json(archive, "career-library/skills.json", skills)
             zip_json(archive, "career-library/experiences.json", experiences)
+            zip_json(archive, "resume-studio/profile.json", resume_profile or {})
+            zip_json(archive, "resume-studio/masters.json", resumes)
+            zip_json(archive, "resume-studio/versions.json", resume_versions)
             for application in applications:
                 for attachment in application.get("attachments") or []:
                     storage_path = attachment.get("storage_path")
@@ -1265,6 +1291,17 @@ async def export_account_data(request: Request, user: dict = Depends(get_current
                         f"attachments/{application['app_id']}/{attachment.get('id', 'file')}-{safe_name}",
                         data,
                     )
+            for resume in resumes:
+                source = resume.get("source_file") or {}
+                storage_path = source.get("storage_path")
+                if not storage_path:
+                    continue
+                data, _ = await run_in_threadpool(get_object, storage_path)
+                safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", source.get("name") or "resume")[:180]
+                archive.writestr(
+                    f"resume-sources/{resume['resume_id']}/{source.get('id', 'file')}-{safe_name}",
+                    data,
+                )
     except (ClientError, BotoCoreError) as exc:
         buffer.close()
         logger.error("Account export could not retrieve an attachment for user %s", user_id)
@@ -3412,6 +3449,22 @@ async def health():
 
 
 app.include_router(api_router)
+app.include_router(build_resume_router(
+    db=db,
+    get_current_user=get_current_user,
+    now_utc=now_utc,
+    put_object=put_object,
+    get_object=get_object,
+    delete_object=delete_object,
+    attach_application_file=attach_application_file,
+    account_transaction=account_transaction,
+    attachment_limit=ATTACHMENT_TOTAL_BYTES_LIMIT,
+    app_name=APP_NAME,
+    gemini_key=GEMINI_API_KEY,
+    gemini_model=GEMINI_MODEL,
+    enabled=RESUME_STUDIO_ENABLED,
+    ai_monthly_limit=AI_RESUME_MONTHLY_LIMIT,
+))
 
 CORS_ORIGINS = [
     origin.strip()
@@ -3472,6 +3525,17 @@ async def seed():
     await db.oauth_states.create_index("state", unique=True)
     await db.oauth_states.create_index("expires_at", expireAfterSeconds=0)
     await db.ai_flyer_usage.create_index("expires_at", expireAfterSeconds=0)
+    await db.ai_resume_usage.create_index("expires_at", expireAfterSeconds=0)
+    await db.resume_profiles.create_index("user_id", unique=True)
+    await db.resumes.create_index("resume_id", unique=True)
+    await db.resumes.create_index([("user_id", 1), ("resume_id", 1)], unique=True)
+    await db.resumes.create_index(
+        [("user_id", 1), ("is_default", 1)], unique=True,
+        partialFilterExpression={"is_default": True},
+    )
+    await db.resume_versions.create_index("version_id", unique=True)
+    await db.resume_versions.create_index([("user_id", 1), ("resume_id", 1), ("updated_at", -1)])
+    await db.resume_versions.create_index([("user_id", 1), ("application_id", 1), ("updated_at", -1)])
     await db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
     await db.storage_cleanup_jobs.create_index("created_at")
 
