@@ -5,6 +5,7 @@ import Applications, { applicationImportPreview } from "./Applications";
 import CalendarPage from "./Calendar";
 import Board from "./Board";
 import Library from "./Library";
+import ResumeStudio from "./ResumeStudio";
 import api from "@/lib/api";
 
 jest.mock("@/lib/api", () => ({
@@ -165,4 +166,24 @@ test("Career Library preserves a visible retry path", async () => {
   await click(button("Try again"));
   expect(container.textContent).toContain("Build your skill set");
   expect(button("Skills (0)").getAttribute("aria-pressed")).toBe("true");
+});
+
+test("Resume Studio loads private setup data and opens the manual builder", async () => {
+  api.get.mockImplementation((url) => {
+    if (url === "/resumes") return Promise.resolve({ data: {
+      resumes: [], recent_versions: [], profile: { full_name: "", preferred_email: "" },
+      ai_usage: { available: false, remaining: 10, limit: 10 },
+      library_summary: { skills: 0, records: 0 }, limits: { masters: 5, versions: 100 },
+    } });
+    if (url === "/library") return Promise.resolve({ data: { skills: [], experiences: [] } });
+    if (url === "/applications") return Promise.resolve({ data: [] });
+    return Promise.reject(new Error(`Unexpected request: ${url}`));
+  });
+  await render(<ResumeStudio />);
+  expect(container.textContent).toContain("Resume Studio");
+  expect(container.textContent).toContain("10 / 10");
+  expect(container.textContent).toContain("Create your first master resume");
+  await click(button("New master resume"));
+  expect(document.querySelector('[role="dialog"]').textContent).toContain("Create master resume");
+  expect(document.querySelector('input[placeholder="e.g. Software Engineering"]')).not.toBeNull();
 });

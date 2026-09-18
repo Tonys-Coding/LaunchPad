@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Archive, Award, BookOpenCheck, BriefcaseBusiness, Check, ChevronDown, ExternalLink,
-  FileBadge2, FolderKanban, GraduationCap, LibraryBig, Loader2, Pencil, Plus, Search,
+  FileBadge2, FileText, FolderKanban, GraduationCap, LibraryBig, Loader2, Pencil, Plus, Search,
   Settings2, Sparkles, Trash2, Trophy, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -277,6 +278,7 @@ function ShowcaseForm({ open, onOpenChange, library, onSaved }) {
 }
 
 export default function Library() {
+  const navigate = useNavigate();
   const [library, setLibrary] = useState(emptyLibrary);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -383,7 +385,7 @@ export default function Library() {
                 return <article key={skill.skill_id} className="lp-panel lp-panel-hover lp-chamfer-tr group flex min-h-48 flex-col p-4">
                   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">{skill.category}</p><h2 className="mt-1 truncate font-heading text-xl font-bold">{skill.name}</h2></div><span className="lp-chamfer-chip border border-outline-variant px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">{skill.level}</span></div>
                   {skill.notes && <p className="mt-3 line-clamp-2 text-sm leading-5 text-on-surface-variant">{skill.notes}</p>}
-                  <div className="mt-auto flex justify-end gap-1 border-t border-outline-variant pt-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"><button onClick={() => openSkill(skill)} className="p-2 text-on-surface-variant hover:text-on-surface" title="Edit skill"><Pencil size={15} /></button><button onClick={() => setDeleting({ kind: "skill", item: skill })} className="p-2 text-on-surface-variant hover:text-danger" title="Delete skill"><Trash2 size={15} /></button></div>
+                  <div className="mt-auto flex justify-end gap-1 border-t border-outline-variant pt-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"><button onClick={() => navigate(`/resumes?libraryKind=skill&libraryId=${encodeURIComponent(skill.skill_id)}`)} className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-brand" title="Use in a resume"><FileText size={14} />Use in Resume</button><button onClick={() => openSkill(skill)} className="p-2 text-on-surface-variant hover:text-on-surface" title="Edit skill"><Pencil size={15} /></button><button onClick={() => setDeleting({ kind: "skill", item: skill })} className="p-2 text-on-surface-variant hover:text-danger" title="Delete skill"><Trash2 size={15} /></button></div>
                 </article>;
               })}
             </div> : <EmptyState icon={Award} title={query ? "No matching skills" : "Build your skill set"} text={query ? "Try a different search." : "Add the abilities you want to reuse across applications, resumes, and interviews."} action={!query && <button onClick={() => openSkill()} className="lp-chamfer-button mt-4 bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand"><Plus size={15} className="mr-2 inline" />Add your first skill</button>} />
@@ -395,6 +397,7 @@ export default function Library() {
                   {item.description && <p className="mt-4 max-w-3xl text-sm leading-6 text-on-surface-variant">{item.description}</p>}
                   {item.outcome && <div className="mt-3 border-l-2 border-brand bg-brand/5 px-3 py-2 text-sm"><span className="font-semibold">Outcome:</span> {item.outcome}</div>}
                   {item.resume_bullet && <div className="mt-3 border border-outline-variant bg-surface-low px-3 py-2 text-sm"><span className="mr-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">Resume bullet</span>{item.resume_bullet}</div>}
+                  <button onClick={() => navigate(`/resumes?libraryKind=record&libraryId=${encodeURIComponent(item.experience_id)}`)} className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline"><FileText size={14} />Use in Resume</button>
                   <div className="mt-4 flex flex-wrap items-center gap-2">{item.skill_ids?.map((id) => skillById[id] && <span key={id} className="lp-chamfer-chip border border-outline-variant bg-surface-high px-2.5 py-1 text-xs">{skillById[id].name}</span>)}{item.link && <a href={item.link} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">Open link <ExternalLink size={12} /></a>}</div>
                 </div></div>
               </article>;

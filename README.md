@@ -21,6 +21,7 @@ This repository contains the independent, self-hosted version of LaunchPad. It r
 - **Stay ahead of important dates.** Keep events, interviews, and follow-ups in one calendar, with optional export to a dedicated Google Calendar.
 - **Build momentum.** Set a daily or weekly application goal, get a fresh motivational prompt each day, and celebrate when the target is reached.
 - **Remember your strongest work.** Save skills, experiences, projects, accomplishments, and interview notes in the Career Library.
+- **Turn that work into a focused resume.** Build reusable master resumes, compare them with a job description, review grounded AI suggestions, and export ATS-safe DOCX or PDF files.
 - **Keep the details nearby.** Add notes, compensation information, reminders, resumes, and job descriptions to each application.
 - **Spend less time typing.** Import and export CSV files, capture event flyers, read structured job pages, and optionally improve extracted details with Gemini.
 - **Add things while you browse.** The companion Chrome extension supports application capture, quick events, persistent drafts, and a compact weekly calendar.
@@ -34,6 +35,7 @@ This repository contains the independent, self-hosted version of LaunchPad. It r
 | Board | A visual pipeline from Applied through Offer or Rejected |
 | Calendar | Events, interviews, follow-ups, reminders, flyer capture, and optional Google sync |
 | Career Library | Reusable skills, experience, projects, accomplishments, and top strengths |
+| Resume Studio | Resume contact details, master resumes, job-match analysis, reviewable tailoring, and DOCX/PDF export |
 | Settings | Profile, preferences, connected services, sessions, data export, and account deletion |
 | Extension | Fast application and event capture without leaving the page you are viewing |
 
@@ -58,7 +60,7 @@ To customize local settings, copy `.env.example` to `.env` before starting. Keep
 - React frontend served by Caddy
 - FastAPI backend
 - MongoDB for accounts and private user data
-- MinIO for resume and job-description attachments
+- MinIO for resume imports, application resumes, and job-description attachments
 
 Only the web application is exposed to your computer at `127.0.0.1:8080`. The database, object storage, and backend stay on the private Compose network.
 
@@ -74,7 +76,7 @@ The health endpoint is also available at [http://localhost:8080/api/health](http
 
 LaunchPad is built around a simple rule: one user should never see another user's career data.
 
-- Every application, event, Career Library record, note, attachment, calendar connection, and analytics request is scoped to the authenticated user.
+- Every application, event, Career Library record, resume profile, master resume, tailored version, note, attachment, calendar connection, and analytics request is scoped to the authenticated user.
 - Requests for another user's record return the same `404` response as a record that does not exist.
 - Session tokens are stored in an HTTP-only cookie, and only one-way hashes are stored in MongoDB.
 - Google credentials are encrypted, never returned to the browser, and used only for the connection the user chose to create.
@@ -100,16 +102,16 @@ Before publishing the extension, replace the localhost URL, restrict backend COR
 
 ## Optional AI assistance
 
-Local flyer extraction remains available without an AI account. When a flyer or job posting is difficult to read, **Improve with AI** can send only the selected image and limited OCR text—or the limited job-page text the user explicitly chose to read—to Gemini Flash-Lite.
+Local flyer extraction and resume parsing remain available without an AI account. When a flyer or job posting is difficult to read, **Improve with AI** can send only the selected image and limited OCR text—or the limited job-page text the user explicitly chose to read—to Gemini Flash-Lite. Resume Studio can optionally send extracted resume text and a selected job description for grounded match analysis and reviewable wording suggestions; raw resume files are never sent to Gemini.
 
 The AI request:
 
 - never runs automatically;
-- returns an editable draft rather than saving anything;
+- returns an editable draft or reviewable suggestion set rather than changing source data;
 - leaves the local draft intact if the provider fails; and
 - is protected by a per-user daily limit.
 
-Add `GEMINI_API_KEY` to `.env` and recreate the backend to enable it. `GEMINI_MODEL` can override the configured model, and `AI_FLYER_DAILY_LIMIT` controls the daily cost guardrail.
+Add `GEMINI_API_KEY` to `.env` and recreate the backend to enable it. `GEMINI_MODEL` can override the configured model, `AI_FLYER_DAILY_LIMIT` controls the daily capture guardrail, and `AI_RESUME_MONTHLY_LIMIT` controls the monthly Resume Studio allowance. Manual resume editing and export remain available when AI is disabled or its allowance is exhausted.
 
 ## Google sign-in
 

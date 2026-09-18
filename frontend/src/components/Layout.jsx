@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Briefcase, Settings, Plus, LogOut, Menu, X, Home, List, Columns3, Sun, Moon, CalendarDays, LibraryBig } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Briefcase, Settings, Plus, LogOut, Menu, X, Home, List, Columns3, Sun, Moon, CalendarDays, LibraryBig, FileText, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Avatar } from "@/components/Avatar";
@@ -12,7 +12,8 @@ const navItems = [
   { to: "/board", label: "Board", index: "03", icon: Columns3, testid: "nav-board" },
   { to: "/calendar", label: "Calendar", index: "04", icon: CalendarDays, testid: "nav-calendar" },
   { to: "/library", label: "Career Library", index: "05", icon: LibraryBig, testid: "nav-library" },
-  { to: "/settings", label: "Settings", index: "06", icon: Settings, testid: "nav-settings" },
+  { to: "/resumes", label: "Resume Studio", index: "06", icon: FileText, testid: "nav-resumes" },
+  { to: "/settings", label: "Settings", index: "07", icon: Settings, testid: "nav-settings" },
 ];
 
 const mobileNav = [
@@ -21,14 +22,16 @@ const mobileNav = [
   { to: "/board", label: "Board", icon: Columns3, testid: "mnav-board" },
   { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "mnav-calendar" },
   { to: "/library", label: "Library", icon: LibraryBig, testid: "mnav-library" },
-  { to: "/settings", label: "Profile", icon: Settings, testid: "mnav-settings" },
+  { action: "more", label: "More", icon: MoreHorizontal, testid: "mnav-more" },
 ];
 
 export function Layout({ children, title, onAddApplication, wide }) {
   const { user, setUser, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const visibleNavItems = navItems.filter((item) => item.to !== "/resumes" || user?.features?.resume_studio !== false);
   const drawerCloseRef = useRef(null);
   const markFilter = theme === "light" ? "brightness(0)" : "brightness(0) invert(1)";
 
@@ -81,7 +84,7 @@ export function Layout({ children, title, onAddApplication, wide }) {
           </button>
         )}
         <nav className="mt-7 flex-1 space-y-1.5">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -166,7 +169,7 @@ export function Layout({ children, title, onAddApplication, wide }) {
               <button ref={drawerCloseRef} aria-label="Close navigation menu" onClick={() => setMobileOpen(false)} className="text-on-surface-variant" data-testid="mobile-menu-close"><X size={22} /></button>
             </div>
             <nav className="mt-8 flex-1 space-y-1.5">
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -190,7 +193,18 @@ export function Layout({ children, title, onAddApplication, wide }) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 z-40 flex h-16 w-full items-center justify-around border-t border-outline-variant bg-surface-lowest/95 backdrop-blur-md lg:hidden">
-        {mobileNav.map((item) => (
+        {mobileNav.map((item) => item.action === "more" ? (
+          <button
+            key={item.action}
+            type="button"
+            data-testid={item.testid}
+            onClick={() => setMobileOpen(true)}
+            className={`lp-chamfer-chip flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 ${["/resumes", "/settings"].includes(location.pathname) ? "bg-brand text-on-brand" : "text-on-surface-variant"}`}
+          >
+            <item.icon size={22} />
+            <span className="text-[10px] font-label">{item.label}</span>
+          </button>
+        ) : (
           <NavLink
             key={item.to}
             to={item.to}
