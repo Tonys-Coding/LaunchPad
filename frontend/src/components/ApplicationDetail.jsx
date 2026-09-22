@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { statusColors, confColors, formatStartDate, formatInterview } from "@/lib/constants";
 import { useTheme } from "@/context/ThemeContext";
-import { Calendar, DollarSign, Gauge, CalendarClock, Pencil, Trash2, Send, Sparkles, ArrowRight, StickyNote, Loader2, Paperclip, FileText, Download, Upload } from "lucide-react";
+import { Calendar, DollarSign, Gauge, CalendarClock, Pencil, Trash2, Send, Sparkles, WandSparkles, ArrowRight, StickyNote, Loader2, Paperclip, FileText, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 
@@ -45,6 +46,7 @@ function ActivityRow({ ev, sc }) {
 }
 
 export function ApplicationDetail({ open, onOpenChange, app, onEdit, onDelete, onChanged }) {
+  const navigate = useNavigate();
   const { theme } = useTheme();
   const STATUS_COLORS = statusColors(theme);
   const CONF_COLORS = confColors(theme);
@@ -141,6 +143,9 @@ export function ApplicationDetail({ open, onOpenChange, app, onEdit, onDelete, o
         )}
 
         <div className="flex gap-2">
+          <button onClick={() => { onOpenChange(false); navigate(`/resumes?application=${encodeURIComponent(local.app_id)}`); }} className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-brand text-on-brand hover:brightness-110 transition-all">
+            <WandSparkles size={14} /> Tailor Resume
+          </button>
           <button data-testid="detail-edit" onClick={() => { onOpenChange(false); onEdit?.(local); }} className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-outline-variant text-cyan hover:bg-surface-low transition-colors">
             <Pencil size={14} /> Edit
           </button>

@@ -11,6 +11,7 @@ import Board from "@/pages/Board";
 import Settings from "@/pages/Settings";
 import CalendarPage from "@/pages/Calendar";
 import Library from "@/pages/Library";
+import ResumeStudio from "@/pages/ResumeStudio";
 import { Privacy, Terms } from "@/pages/Legal";
 
 function FullScreenLoader() {
@@ -45,7 +46,9 @@ export function AppRouter() {
       <Route path="/applications" element={<ProtectedRoute><Applications /></ProtectedRoute>} />
       <Route path="/board" element={<ProtectedRoute><Board /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-      <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+      <Route path="/career-profile" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+      <Route path="/library" element={<Navigate to="/career-profile" replace />} />
+      <Route path="/resumes" element={<ProtectedRoute><ResumeStudio /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

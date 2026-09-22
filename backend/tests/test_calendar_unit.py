@@ -406,3 +406,42 @@ def test_google_sync_retries_without_creating_duplicates(monkeypatch):
     second = asyncio.run(server.sync_event_to_google(user, first))
     assert second["google_event_id"] == google_id
     assert len(calls) == 1 and calls[0][0] == "PUT"
+
+
+def test_expired_google_token_marks_connection_for_reauthorization(monkeypatch):
+    connection = {
+        "user_id": "user_1",
+        "calendar_id": "launchpad@example.com",
+        "refresh_token_ciphertext": "encrypted",
+        "email": "student@example.com",
+    }
+    fake_connections = FakeCollection(connection)
+    monkeypatch.setattr(server, "db", SimpleNamespace(google_calendar_connections=fake_connections))
+    monkeypatch.setattr(server, "decrypt_refresh_token", lambda _: "refresh-token")
+
+    class FakeResponse:
+        status_code = 400
+
+        def json(self):
+            return {"error": "invalid_grant"}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return None
+
+        async def post(self, *_args, **_kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(server.httpx, "AsyncClient", lambda **_: FakeClient())
+
+    with pytest.raises(server.CalendarSyncError, match="google_reauthorization_required"):
+        asyncio.run(server.google_access_token(connection))
+
+    assert fake_connections.record["reauthorization_required"] is True
+    public = server.integration_to_public(fake_connections.record)
+    assert public["connected"] is False
+    assert public["has_connection"] is True
+    assert public["requires_reauthorization"] is True

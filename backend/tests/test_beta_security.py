@@ -163,8 +163,10 @@ class Collection:
 def data_store():
     store = SimpleNamespace(**{name: Collection() for name in (
         "applications", "events", "library_skills", "library_experiences",
-        "google_calendar_connections", "oauth_states", "ai_flyer_usage", "user_sessions", "rate_limits",
+        "resumes", "resume_versions", "google_calendar_connections", "oauth_states",
+        "ai_flyer_usage", "ai_resume_usage", "user_sessions", "rate_limits",
     )})
+    store.resume_profiles = SimpleNamespace(find_one=AsyncMock(return_value=None))
     store.users = SimpleNamespace(delete_one=AsyncMock())
     return store
 
@@ -185,6 +187,7 @@ def test_complete_export_redacts_credentials_and_stream_closes(monkeypatch):
         payload = b"".join([chunk async for chunk in response.body_iterator])
         await response.background()
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            assert json.loads(archive.read("manifest.json"))["format_version"] == 2
             assert archive.read("attachments/one/file-resume.txt") == b"resume-content"
             account = json.loads(archive.read("account.json"))
             assert account["application_goal"]["target"] == 3
@@ -197,6 +200,7 @@ def test_complete_export_redacts_credentials_and_stream_closes(monkeypatch):
     asyncio.run(run())
     assert all(collection.scopes == [{"user_id": "owner"}] for collection in (
         store.applications, store.events, store.library_skills, store.library_experiences,
+        store.resumes, store.resume_versions,
     ))
 
 

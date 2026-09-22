@@ -7,7 +7,7 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
+    && apt-get install -y --no-install-recommends libreoffice-writer tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
@@ -19,6 +19,7 @@ COPY server.py ./
 COPY atomic_writes.py ./
 COPY maintenance.py ./
 COPY flyer_extract.py ./
+COPY resume_studio.py ./
 
 RUN useradd --create-home --uid 10001 launchpad
 USER launchpad

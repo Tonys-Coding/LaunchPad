@@ -1,3 +1,22 @@
 .App {
     min-height: 100vh;
 }
+/* ATS-safe resume preview used by Resume Studio. */
+.resume-paper {
+  width: 100%;
+  min-height: 100%;
+  padding: 5.5%;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(10px, 1vw, 16px);
+}
+
+.resume-paper--compact { padding: 4.5%; }
+
+.resume-paper-heading {
+  border-bottom: 1px solid #4b5563;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

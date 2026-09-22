@@ -167,11 +167,25 @@ export default function CalendarPage() {
                 const selected = isSameDay(day, selectedDay);
                 const today = isSameDay(day, new Date());
                 return (
-                  <div key={day.toISOString()} role="gridcell" aria-selected={selected} className={`min-h-[92px] border-b border-r border-outline-variant p-1.5 text-left transition-colors hover:bg-surface-mid/50 sm:min-h-[118px] sm:p-2 ${!isSameMonth(day, month) ? "opacity-35" : ""} ${selected ? "bg-surface-mid/70" : ""}`}>
-                    <button type="button" onClick={() => openNew(day)} aria-label={`Add event on ${format(day, "MMMM d, yyyy")}`} className={`lp-chamfer-chip inline-flex h-7 w-7 items-center justify-center text-xs hover:bg-surface-high focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:text-sm ${today ? "bg-brand font-bold text-on-brand shadow-[0_0_14px_rgb(var(--brand)/0.22)]" : ""}`}>{format(day, "d")}</button>
+                  <div
+                    key={day.toISOString()}
+                    role="gridcell"
+                    tabIndex={0}
+                    aria-label={`Select ${format(day, "MMMM d, yyyy")}`}
+                    aria-selected={selected}
+                    onClick={() => setSelectedDay(day)}
+                    onKeyDown={(event) => {
+                      if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                        event.preventDefault();
+                        setSelectedDay(day);
+                      }
+                    }}
+                    className={`min-h-[92px] cursor-pointer border-b border-r border-outline-variant p-1.5 text-left transition-colors hover:bg-surface-mid/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-[-2px] sm:min-h-[118px] sm:p-2 ${!isSameMonth(day, month) ? "opacity-35" : ""} ${selected ? "bg-surface-mid/70" : ""}`}
+                  >
+                    <span className={`lp-chamfer-chip inline-flex h-7 w-7 items-center justify-center text-xs sm:text-sm ${today ? "bg-brand font-bold text-on-brand shadow-[0_0_14px_rgb(var(--brand)/0.22)]" : ""}`}>{format(day, "d")}</span>
                     <div className="space-y-1 mt-1">
                       {dayItems.slice(0, 3).map((item) => {
-                        return <button type="button" key={item.id} onClick={() => { setSelectedDay(day); setDetail(item); }} aria-label={`Open ${item.title}`} className={`flex w-full items-center gap-1 truncate rounded border px-1.5 py-1 text-left text-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:text-xs ${CATEGORY_STYLES[item.category] || CATEGORY_STYLES.Other}`}><EventIcon item={item} size={13} className="shrink-0" /><span className="truncate">{item.title}</span></button>;
+                        return <button type="button" key={item.id} onClick={(event) => { event.stopPropagation(); setSelectedDay(day); setDetail(item); }} aria-label={`Open ${item.title}`} className={`flex w-full items-center gap-1 truncate rounded border px-1.5 py-1 text-left text-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:text-xs ${CATEGORY_STYLES[item.category] || CATEGORY_STYLES.Other}`}><EventIcon item={item} size={13} className="shrink-0" /><span className="truncate">{item.title}</span></button>;
                       })}
                       {dayItems.length > 3 && <span className="block text-[10px] text-on-surface-variant pl-1">+{dayItems.length - 3} more</span>}
                     </div>
@@ -186,17 +200,19 @@ export default function CalendarPage() {
           {integration.configured && (
             <div className="lp-panel lp-chamfer-tr lp-crosshair p-4">
               <div className="flex items-start justify-between gap-3">
-                <div><p className="font-semibold flex items-center gap-2"><Link2 size={17} /> Google Calendar</p><p className="text-xs text-on-surface-variant mt-1">{integration.connected ? `Connected as ${integration.email}` : "Not connected"}</p></div>
+                <div><p className="font-semibold flex items-center gap-2"><Link2 size={17} /> Google Calendar</p><p className={`mt-1 text-xs ${integration.requires_reauthorization ? "text-danger" : "text-on-surface-variant"}`}>{integration.requires_reauthorization ? "Reconnect required" : integration.connected ? `Connected as ${integration.email}` : "Not connected"}</p></div>
                 <span className={`w-2.5 h-2.5 rounded-full mt-1.5 ${integration.connected ? "bg-emerald-500" : "bg-outline"}`} />
               </div>
               <Link to="/settings" className="lp-chamfer-button mt-3 flex w-full items-center justify-center gap-2 border border-outline-variant py-2 text-sm font-semibold hover:bg-surface-mid">Manage in Settings <ArrowRight size={14} /></Link>
             </div>
           )}
           <div className="lp-panel lp-chamfer-dual lp-crosshair p-4">
-            <p className="text-xs uppercase tracking-wider text-on-surface-variant">{format(selectedDay, "EEEE")}</p>
-            <h3 className="font-heading text-2xl font-semibold mt-1">{format(selectedDay, "MMMM d")}</h3>
+            <div className="flex items-start justify-between gap-3">
+              <div><p className="text-xs uppercase tracking-wider text-on-surface-variant">{format(selectedDay, "EEEE")}</p><h3 className="font-heading text-2xl font-semibold mt-1">{format(selectedDay, "MMMM d")}</h3></div>
+              <button type="button" data-testid="calendar-day-add-event" aria-label={`Add event on ${format(selectedDay, "MMMM d, yyyy")}`} onClick={() => openNew(selectedDay)} className="lp-chamfer-chip flex h-10 w-10 shrink-0 items-center justify-center border border-outline-variant bg-brand text-on-brand transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><Plus size={19} /></button>
+            </div>
             <div className="mt-4 space-y-2">
-              {agenda.length === 0 ? <div className="text-sm text-on-surface-variant py-8 text-center"><CalendarDays className="mx-auto mb-2 opacity-50" />Nothing scheduled. Click the day to add an event.</div> : agenda.map((item) => {
+              {agenda.length === 0 ? <div className="text-sm text-on-surface-variant py-8 text-center"><CalendarDays className="mx-auto mb-2 opacity-50" />Nothing scheduled for this day.</div> : agenda.map((item) => {
                 return <button key={item.id} onClick={() => setDetail(item)} className="lp-surface-hover lp-chamfer-sm w-full border border-outline-variant bg-surface-mid p-3 text-left transition-colors hover:bg-surface-high"><div className="flex items-start gap-2"><span className={`lp-chamfer-chip border p-1.5 ${CATEGORY_STYLES[item.category] || CATEGORY_STYLES.Other}`}><EventIcon item={item} size={18} /></span><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-0.5 text-xs text-on-surface-variant">{itemTimeLabel(item)}{item.subtitle ? ` · ${item.subtitle}` : ""}</p></div></div></button>;
               })}
             </div>

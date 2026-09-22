@@ -217,6 +217,69 @@ class TestAuth:
         assert r.status_code == 401
 
 
+# ---------- Resume Studio ----------
+class TestResumeStudio:
+    def test_profile_master_export_and_cross_user_isolation(self, new_user_session, second_user_session):
+        profile = new_user_session.put(
+            f"{BASE_URL}/api/resume-profile",
+            json={
+                "full_name": "Resume Owner", "preferred_email": new_user_session._email,
+                "phone": "312-555-1212", "city": "Chicago", "region": "IL",
+                "country": "US", "linkedin": None, "github": None, "portfolio": None,
+                "education": [],
+            }, timeout=30,
+        )
+        assert profile.status_code == 200, profile.text
+        created = new_user_session.post(
+            f"{BASE_URL}/api/resumes",
+            json={
+                "name": "TEST Engineering Master", "template": "standard", "is_default": True,
+                "content": {
+                    "summary": "Engineering student building reliable tools.",
+                    "skills": [{"name": "Python"}],
+                    "experience": [], "projects": [{
+                        "title": "LaunchPad", "organization": "Personal",
+                        "bullets": ["Built a private career workspace"],
+                    }], "education": [], "accomplishments": [], "certifications": [],
+                },
+            }, timeout=30,
+        )
+        assert created.status_code == 200, created.text
+        resume_id = created.json()["resume_id"]
+        assert second_user_session.get(f"{BASE_URL}/api/resumes/{resume_id}", timeout=30).status_code == 404
+        assert second_user_session.put(
+            f"{BASE_URL}/api/resumes/{resume_id}", json={
+                "name": "Stolen", "template": "standard", "content": {},
+            }, timeout=30,
+        ).status_code == 404
+        exported = new_user_session.get(
+            f"{BASE_URL}/api/resumes/{resume_id}/export", params={"format": "docx"}, timeout=30,
+        )
+        assert exported.status_code == 200, exported.text
+        assert exported.content.startswith(b"PK")
+        exported_pdf = new_user_session.get(
+            f"{BASE_URL}/api/resumes/{resume_id}/export", params={"format": "pdf"}, timeout=45,
+        )
+        assert exported_pdf.status_code == 200, exported_pdf.text
+        assert exported_pdf.content.startswith(b"%PDF")
+        removed = new_user_session.delete(f"{BASE_URL}/api/resumes/{resume_id}", timeout=30)
+        assert removed.status_code == 200
+
+    def test_txt_import_is_private_and_editable(self, new_user_session, second_user_session):
+        imported = new_user_session.post(
+            f"{BASE_URL}/api/resumes/import",
+            files={"file": ("resume.txt", b"SUMMARY\nStudent developer\nSKILLS\nPython, React\nEXPERIENCE\nIntern | Example\n- Built reliable software", "text/plain")},
+            data={"name": "TEST Imported Resume", "template": "compact", "improve_with_ai": "false"},
+            timeout=30,
+        )
+        assert imported.status_code == 200, imported.text
+        payload = imported.json()
+        assert payload["content"]["skills"][0]["name"] == "Python"
+        resume_id = payload["resume_id"]
+        assert second_user_session.get(f"{BASE_URL}/api/resumes/{resume_id}", timeout=30).status_code == 404
+        assert new_user_session.delete(f"{BASE_URL}/api/resumes/{resume_id}", timeout=30).status_code == 200
+
+
 # ---------- User settings ----------
 class TestUserSettings:
     def test_profile_and_preferences_persist_and_are_user_scoped(self):

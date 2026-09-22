@@ -292,7 +292,7 @@ async function loadCalendarIntegration() {
   try {
     const status = await api("/integrations/google-calendar");
     calendarConnected = !!status.connected;
-    $("calendar-status").textContent = calendarConnected ? "Google connected" : "Local only";
+    $("calendar-status").textContent = status.requires_reauthorization ? "Reconnect Google" : calendarConnected ? "Google connected" : "Local only";
     $("calendar-status").classList.toggle("connected", calendarConnected);
     $("e-sync-row").classList.toggle("hidden", !calendarConnected);
     $("e-sync").checked = calendarConnected;
@@ -613,7 +613,9 @@ async function saveEvent() {
   button.textContent = "Adding…";
   try {
     const event = await api("/events", { method: "POST", body: JSON.stringify(payload) });
-    toast(event.google_sync_status === "error" ? "Saved locally; Google sync needs a retry" : "Event added", event.google_sync_status === "error");
+    const needsReconnect = event.google_last_error === "google_reauthorization_required";
+    toast(needsReconnect ? "Saved locally; reconnect Google in Settings" : event.google_sync_status === "error" ? "Saved locally; Google sync needs a retry" : "Event added", event.google_sync_status === "error");
+    if (event.google_sync_status === "error") await loadCalendarIntegration();
     await clearEventDraft();
     resetEventForm();
     await loadEvents();
