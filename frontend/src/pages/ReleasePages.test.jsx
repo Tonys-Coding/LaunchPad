@@ -124,7 +124,12 @@ test("calendar isolates integration failure and exposes keyboard-safe day and ev
   await render(<CalendarPage />);
   expect(container.querySelector('[data-testid="calendar-load-error"]')).toBeNull();
   expect(container.querySelector('[role="grid"]')).not.toBeNull();
-  expect(container.querySelector('button[aria-label^="Add event on "]')).not.toBeNull();
+  const selectedDay = container.querySelector('[role="gridcell"][aria-label^="Select "]');
+  expect(selectedDay).not.toBeNull();
+  await click(selectedDay);
+  expect(container.querySelector('[data-testid="mock-event-form"]')).toBeNull();
+  await click(container.querySelector('[data-testid="calendar-day-add-event"]'));
+  expect(container.querySelector('[data-testid="mock-event-form"]')).not.toBeNull();
   const eventButton = container.querySelector('button[aria-label="Open Career Fair"]');
   expect(eventButton).not.toBeNull();
   expect(eventButton.closest("button")).toBe(eventButton);

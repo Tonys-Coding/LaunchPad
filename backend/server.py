@@ -1478,6 +1478,7 @@ async def google_access_token(connection: dict) -> str:
                 "grant_type": "refresh_token",
             })
         if response.status_code >= 400:
+            await mark_google_reauthorization_required(connection)
             raise CalendarSyncError("google_reauthorization_required")
         token = response.json().get("access_token")
         if not token:
@@ -1487,6 +1488,20 @@ async def google_access_token(connection: dict) -> str:
         raise
     except Exception as exc:
         raise CalendarSyncError("google_unavailable") from exc
+
+
+async def mark_google_reauthorization_required(connection: dict):
+    user_id = connection.get("user_id")
+    if not user_id:
+        return
+    await db.google_calendar_connections.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "reauthorization_required": True,
+            "last_error": "google_reauthorization_required",
+            "updated_at": now_utc().isoformat(),
+        }},
+    )
 
 
 async def google_api(
@@ -1511,6 +1526,7 @@ async def google_api(
     accepted = allowed or {200, 201, 204}
     if response.status_code not in accepted:
         if response.status_code in {401, 403}:
+            await mark_google_reauthorization_required(connection)
             raise CalendarSyncError("google_reauthorization_required")
         raise CalendarSyncError(f"google_http_{response.status_code}")
     if response.status_code == 204 or not response.content:
@@ -1609,9 +1625,12 @@ async def persist_event_sync_error(user: dict, event_id: str, code: str):
 
 
 def integration_to_public(connection: dict | None) -> dict:
+    requires_reauthorization = bool(connection and connection.get("reauthorization_required"))
     return {
         "configured": GOOGLE_CALENDAR_ENABLED,
-        "connected": bool(connection),
+        "connected": bool(connection) and not requires_reauthorization,
+        "has_connection": bool(connection),
+        "requires_reauthorization": requires_reauthorization,
         "email": connection.get("email") if connection else None,
         "calendar_name": "LaunchPad" if connection else None,
         "calendar_timezone": connection.get("calendar_timezone") if connection else None,
@@ -2563,6 +2582,8 @@ async def google_calendar_callback(
                 "calendar_timezone": calendar_timezone,
                 "updated_at": now,
                 "connected_at": existing.get("connected_at", now) if same_account else now,
+                "reauthorization_required": False,
+                "last_error": None,
         }
 
         async def save_connection(session):
